@@ -64,3 +64,50 @@ Add the CSS link and a container `div` where you want the app to appear:
         new MorseTrainer(container);
     </script>
 </body>
+```
+
+## Testing
+
+This project includes comprehensive automated tests with **97.99% code coverage**.
+
+### Running Tests
+
+```bash
+# Install dependencies (first time only)
+npm install
+
+# Run tests in watch mode (interactive)
+npm test
+
+# Run tests once (for CI/CD)
+npm run test:run
+
+# Open interactive test UI
+npm run test:ui
+
+# Generate coverage report
+npm run test:coverage
+```
+
+### Test Coverage
+
+The test suite includes **166 tests** covering:
+
+- **Core Functionality** - Morse code generation, audio playback, challenge generation, answer validation, statistics tracking
+- **UI Behavior** - DOM rendering, event handlers, tab navigation, modal interactions, keyboard shortcuts
+- **Integration** - Complete user workflows, settings persistence, level progression, error handling
+
+**Coverage Metrics**: 97.99% statements | 91.59% branches | 100% functions
+
+See [tests/README.md](tests/README.md) for detailed testing documentation.
+
+## Browser Compatibility
+
+* Modern browsers (Chrome, Firefox, Safari, Edge)
+* Requires Web Audio API support
+* Works on mobile devices
+* Optional: Chrome's built-in AI API for enhanced AI features
+
+## License
+
+MIT

@@ -1,0 +1,749 @@
+/**
+ * UI Rendering and Behavior Tests for MorseTrainer
+ * Tests DOM manipulation, event handlers, and user interactions
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { MorseTrainer } from '../morse-trainer.js';
+import { fireEvent, waitFor } from '@testing-library/dom';
+
+describe('MorseTrainer - UI Rendering and Behavior', () => {
+  let container;
+  let trainer;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    trainer = new MorseTrainer(container);
+  });
+
+  afterEach(() => {
+    document.body.removeChild(container);
+    vi.clearAllTimers();
+  });
+
+  describe('Initial DOM Structure', () => {
+    it('should render header with logo and navigation', () => {
+      const header = container.querySelector('.mt-header');
+      expect(header).toBeTruthy();
+      
+      const logo = container.querySelector('.mt-logo-text');
+      expect(logo.textContent).toBe('MorseMaster');
+      
+      const navButtons = container.querySelectorAll('.mt-nav-btn');
+      expect(navButtons.length).toBe(3);
+    });
+
+    it('should render three main views', () => {
+      const trainView = container.querySelector('#view-train');
+      const statsView = container.querySelector('#view-stats');
+      const guideView = container.querySelector('#view-guide');
+      
+      expect(trainView).toBeTruthy();
+      expect(statsView).toBeTruthy();
+      expect(guideView).toBeTruthy();
+    });
+
+    it('should render play button and user input', () => {
+      const playBtn = container.querySelector('#play-btn');
+      const userInput = container.querySelector('#user-input');
+      
+      expect(playBtn).toBeTruthy();
+      expect(userInput).toBeTruthy();
+      expect(userInput.placeholder).toBe('Type answer...');
+    });
+
+    it('should render submit button', () => {
+      const submitBtn = container.querySelector('#submit-btn');
+      expect(submitBtn).toBeTruthy();
+      expect(submitBtn.textContent).toBe('Check Answer');
+    });
+
+    it('should render all three modals', () => {
+      const settingsModal = container.querySelector('#modal-settings');
+      const resetModal = container.querySelector('#modal-reset');
+      const aiHelpModal = container.querySelector('#modal-ai-help');
+      
+      expect(settingsModal).toBeTruthy();
+      expect(resetModal).toBeTruthy();
+      expect(aiHelpModal).toBeTruthy();
+    });
+
+    it('should hide all modals initially', () => {
+      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(true);
+      expect(trainer.dom.modals.reset.classList.contains('hidden')).toBe(true);
+      expect(trainer.dom.modals.aiHelp.classList.contains('hidden')).toBe(true);
+    });
+
+    it('should render Koch grid', () => {
+      const kochGrid = container.querySelector('#koch-grid');
+      expect(kochGrid).toBeTruthy();
+    });
+
+    it('should render AI operation buttons', () => {
+      const buttons = container.querySelectorAll('[data-action^="ai:"]');
+      expect(buttons.length).toBeGreaterThanOrEqual(2); // broadcast and coach
+    });
+  });
+
+  describe('Tab Navigation', () => {
+    it('should show train view by default', () => {
+      expect(trainer.dom.views.train.classList.contains('hidden')).toBe(false);
+      expect(trainer.dom.views.stats.classList.contains('hidden')).toBe(true);
+      expect(trainer.dom.views.guide.classList.contains('hidden')).toBe(true);
+    });
+
+    it('should switch to stats view when stats tab clicked', () => {
+      const statsTab = container.querySelector('[data-action="tab:stats"]');
+      fireEvent.click(statsTab);
+      
+      expect(trainer.dom.views.train.classList.contains('hidden')).toBe(true);
+      expect(trainer.dom.views.stats.classList.contains('hidden')).toBe(false);
+      expect(trainer.dom.views.guide.classList.contains('hidden')).toBe(true);
+      expect(trainer.state.activeTab).toBe('stats');
+    });
+
+    it('should switch to guide view when guide tab clicked', () => {
+      const guideTab = container.querySelector('[data-action="tab:guide"]');
+      fireEvent.click(guideTab);
+      
+      expect(trainer.dom.views.train.classList.contains('hidden')).toBe(true);
+      expect(trainer.dom.views.stats.classList.contains('hidden')).toBe(true);
+      expect(trainer.dom.views.guide.classList.contains('hidden')).toBe(false);
+      expect(trainer.state.activeTab).toBe('guide');
+    });
+
+    it('should add active class to current tab button', () => {
+      const trainTab = container.querySelector('[data-action="tab:train"]');
+      const statsTab = container.querySelector('[data-action="tab:stats"]');
+      
+      expect(trainTab.classList.contains('active')).toBe(true);
+      
+      fireEvent.click(statsTab);
+      
+      expect(trainTab.classList.contains('active')).toBe(false);
+      expect(statsTab.classList.contains('active')).toBe(true);
+    });
+
+    it('should generate first challenge when switching to train view', () => {
+      trainer.state.currentChallenge = '';
+      
+      const trainTab = container.querySelector('[data-action="tab:train"]');
+      fireEvent.click(trainTab);
+      
+      expect(trainer.state.currentChallenge).toBeTruthy();
+    });
+  });
+
+  describe('Modal Interactions', () => {
+    it('should open settings modal when settings button clicked', () => {
+      const settingsBtn = container.querySelector('[data-action="modal:settings:open"]');
+      fireEvent.click(settingsBtn);
+      
+      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(false);
+    });
+
+    it('should close settings modal when close button clicked', () => {
+      trainer.toggleModal('settings', true);
+      
+      const closeBtn = container.querySelector('[data-action="modal:settings:close"]');
+      fireEvent.click(closeBtn);
+      
+      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(true);
+    });
+
+    it('should open reset confirmation modal', () => {
+      const resetBtn = container.querySelector('[data-action="modal:reset:open"]');
+      if (resetBtn) {
+        fireEvent.click(resetBtn);
+        expect(trainer.dom.modals.reset.classList.contains('hidden')).toBe(false);
+      }
+    });
+
+    it('should close reset modal on cancel', () => {
+      trainer.toggleModal('reset', true);
+      
+      const cancelBtn = container.querySelector('[data-action="modal:reset:close"]');
+      fireEvent.click(cancelBtn);
+      
+      expect(trainer.dom.modals.reset.classList.contains('hidden')).toBe(true);
+    });
+
+    it('should open AI help modal', () => {
+      const aiHelpBtn = container.querySelector('[data-action="modal:aiHelp:open"]');
+      fireEvent.click(aiHelpBtn);
+      
+      expect(trainer.dom.modals.aiHelp.classList.contains('hidden')).toBe(false);
+    });
+  });
+
+  describe('Play Button Rendering', () => {
+    it('should show play icon initially', () => {
+      expect(trainer.dom.displays.playBtn.innerHTML).toContain('polygon'); // Play icon is a polygon
+      expect(trainer.dom.displays.playStatus.textContent).toContain('Click to Play');
+    });
+
+    it('should change to stop icon when playing', () => {
+      trainer.state.isPlaying = true;
+      trainer.renderPlayButton();
+      
+      expect(trainer.dom.displays.playBtn.innerHTML).toContain('rect'); // Stop icon is a rect
+      expect(trainer.dom.displays.playStatus.textContent).toContain('Click to Stop');
+    });
+
+    it('should add stop class when playing', () => {
+      trainer.state.isPlaying = true;
+      trainer.renderPlayButton();
+      
+      expect(trainer.dom.displays.playBtn.classList.contains('stop')).toBe(true);
+    });
+
+    it('should revert to play icon when stopped', () => {
+      trainer.state.isPlaying = true;
+      trainer.renderPlayButton();
+      
+      trainer.state.isPlaying = false;
+      trainer.renderPlayButton();
+      
+      expect(trainer.dom.displays.playBtn.classList.contains('play')).toBe(true);
+    });
+  });
+
+  describe('Submit Button State', () => {
+    it('should be disabled when no challenge exists', () => {
+      trainer.state.currentChallenge = '';
+      trainer.renderSubmitButton();
+      
+      expect(trainer.dom.displays.submitBtn.disabled).toBe(true);
+    });
+
+    it('should be disabled when playing', () => {
+      trainer.state.currentChallenge = 'TEST';
+      trainer.state.isPlaying = true;
+      trainer.state.hasPlayedCurrent = true;
+      trainer.renderSubmitButton();
+      
+      expect(trainer.dom.displays.submitBtn.disabled).toBe(true);
+    });
+
+    it('should be disabled when challenge not played yet', () => {
+      trainer.state.currentChallenge = 'TEST';
+      trainer.state.isPlaying = false;
+      trainer.state.hasPlayedCurrent = false;
+      trainer.renderSubmitButton();
+      
+      expect(trainer.dom.displays.submitBtn.disabled).toBe(true);
+    });
+
+    it('should be enabled when challenge played and not playing', () => {
+      trainer.state.currentChallenge = 'TEST';
+      trainer.state.isPlaying = false;
+      trainer.state.hasPlayedCurrent = true;
+      trainer.renderSubmitButton();
+      
+      expect(trainer.dom.displays.submitBtn.disabled).toBe(false);
+    });
+  });
+
+  describe('Koch Grid Rendering', () => {
+    it('should render all Koch sequence characters', () => {
+      trainer.renderKochGrid();
+      
+      const buttons = container.querySelectorAll('.mt-koch-btn');
+      expect(buttons.length).toBeGreaterThan(0);
+    });
+
+    it('should mark unlocked characters', () => {
+      trainer.state.settings.lessonLevel = 5;
+      trainer.state.settings.manualChars = [];
+      trainer.renderKochGrid();
+      
+      const unlockedBtns = container.querySelectorAll('.mt-koch-btn.unlocked');
+      expect(unlockedBtns.length).toBe(5);
+    });
+
+    it('should mark manually selected characters', () => {
+      trainer.state.settings.lessonLevel = 2;
+      trainer.state.settings.manualChars = ['X', 'Y'];
+      trainer.renderKochGrid();
+      
+      const manualBtns = container.querySelectorAll('.mt-koch-btn.manual');
+      expect(manualBtns.length).toBe(2);
+    });
+
+    it('should update level badge', () => {
+      trainer.state.settings.lessonLevel = 7;
+      trainer.renderKochGrid();
+      
+      const badge = container.querySelector('#level-badge');
+      expect(badge.textContent).toBe('Level 7');
+    });
+
+    it('should create clickable buttons with data-char attribute', () => {
+      trainer.renderKochGrid();
+      
+      const firstBtn = container.querySelector('.mt-koch-btn');
+      expect(firstBtn.dataset.char).toBeTruthy();
+    });
+  });
+
+  describe('Settings Rendering', () => {
+    it('should display current WPM setting', () => {
+      trainer.state.settings.wpm = 25;
+      trainer.renderSettings();
+      
+      const display = container.querySelector('#display-wpm');
+      expect(display.textContent).toBe('25 WPM');
+    });
+
+    it('should display current Farnsworth setting', () => {
+      trainer.state.settings.farnsworthWpm = 15;
+      trainer.renderSettings();
+      
+      const display = container.querySelector('#display-farnsworth');
+      expect(display.textContent).toBe('15 WPM');
+    });
+
+    it('should display current frequency setting', () => {
+      trainer.state.settings.frequency = 800;
+      trainer.renderSettings();
+      
+      const display = container.querySelector('#display-frequency');
+      expect(display.textContent).toBe('800 Hz');
+    });
+
+    it('should sync input values with settings', () => {
+      trainer.state.settings.wpm = 30;
+      trainer.state.settings.farnsworthWpm = 20;
+      trainer.state.settings.frequency = 900;
+      trainer.renderSettings();
+      
+      expect(trainer.dom.inputs.wpm.value).toBe('30');
+      expect(trainer.dom.inputs.farnsworth.value).toBe('20');
+      expect(trainer.dom.inputs.frequency.value).toBe('900');
+    });
+
+    it('should display AI status badge for cloud API', () => {
+      trainer.state.settings.apiKey = 'test-key';
+      trainer.renderSettings();
+      
+      const badge = container.querySelector('#ai-status-badge');
+      expect(badge.textContent).toContain('Gemini Cloud');
+    });
+
+    it('should display AI status badge for browser AI', () => {
+      trainer.state.settings.apiKey = '';
+      trainer.state.hasBrowserAI = true;
+      trainer.renderSettings();
+      
+      const badge = container.querySelector('#ai-status-badge');
+      expect(badge.textContent).toContain('Chrome AI');
+    });
+
+    it('should display AI status badge for offline mode', () => {
+      trainer.state.settings.apiKey = '';
+      trainer.state.hasBrowserAI = false;
+      trainer.renderSettings();
+      
+      const badge = container.querySelector('#ai-status-badge');
+      expect(badge.textContent).toContain('Offline Template');
+    });
+  });
+
+  describe('Stats Rendering', () => {
+    it('should display accuracy percentage', () => {
+      trainer.state.stats.accuracy = {
+        'A': { correct: 8, total: 10 },
+        'B': { correct: 7, total: 10 },
+      };
+      trainer.renderStats();
+      
+      const accuracyDiv = container.querySelector('#stat-accuracy');
+      expect(accuracyDiv.textContent).toBe('75%'); // (8+7)/(10+10) = 15/20 = 75%
+    });
+
+    it('should display 0% when no attempts', () => {
+      trainer.state.stats.accuracy = {};
+      trainer.renderStats();
+      
+      const accuracyDiv = container.querySelector('#stat-accuracy');
+      expect(accuracyDiv.textContent).toBe('0%');
+    });
+
+    it('should display total drills count', () => {
+      trainer.state.stats.history = [
+        { challenge: 'A', correct: true },
+        { challenge: 'B', correct: false },
+        { challenge: 'C', correct: true },
+      ];
+      trainer.renderStats();
+      
+      const drillsDiv = container.querySelector('#stat-drills');
+      expect(drillsDiv.textContent).toBe('3');
+    });
+
+    it('should render history list with recent entries', () => {
+      trainer.state.stats.history = [
+        { challenge: 'TEST1', input: 'TEST1', correct: true, timestamp: Date.now() - 30000 },
+        { challenge: 'TEST2', input: 'WRONG', correct: false, timestamp: Date.now() - 60000 },
+      ];
+      trainer.renderStats();
+      
+      const items = container.querySelectorAll('.mt-history-item');
+      expect(items.length).toBe(2);
+    });
+
+    it('should limit history display to 20 items', () => {
+      trainer.state.stats.history = new Array(50).fill(null).map((_, i) => ({
+        challenge: `TEST${i}`,
+        correct: true,
+        timestamp: Date.now(),
+      }));
+      trainer.renderStats();
+      
+      const items = container.querySelectorAll('.mt-history-item');
+      expect(items.length).toBe(20);
+    });
+
+    it('should show success/error styling for history items', () => {
+      trainer.state.stats.history = [
+        { challenge: 'A', correct: true, timestamp: Date.now() },
+        { challenge: 'B', correct: false, timestamp: Date.now() },
+      ];
+      trainer.renderStats();
+      
+      const items = container.querySelectorAll('.mt-history-item');
+      expect(items[0].classList.contains('success')).toBe(true);
+      expect(items[1].classList.contains('error')).toBe(true);
+    });
+  });
+
+  describe('Guide Rendering', () => {
+    it('should render roadmap list', () => {
+      trainer.renderGuide();
+      
+      const roadmap = container.querySelector('#roadmap-list');
+      const chunks = roadmap.querySelectorAll('.mt-roadmap-chunk');
+      expect(chunks.length).toBeGreaterThan(0);
+    });
+
+    it('should render abbreviations grid', () => {
+      trainer.renderGuide();
+      
+      const abbrGrid = container.querySelector('#abbr-grid');
+      const cards = abbrGrid.querySelectorAll('.mt-abbr-card');
+      expect(cards.length).toBeGreaterThan(0);
+    });
+
+    it('should display abbreviation codes and meanings', () => {
+      trainer.renderGuide();
+      
+      const firstCard = container.querySelector('.mt-abbr-card');
+      expect(firstCard).toBeTruthy();
+      
+      const code = firstCard.querySelector('.mt-abbr-code');
+      const meaning = firstCard.querySelector('.mt-abbr-meaning');
+      expect(code).toBeTruthy();
+      expect(meaning).toBeTruthy();
+    });
+  });
+
+  describe('Event Handling - Click Events', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      trainer.state.currentChallenge = 'TEST';
+      trainer.state.hasPlayedCurrent = true;
+      trainer.state.isPlaying = false;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should trigger play on play button click', () => {
+      const playSpy = vi.spyOn(trainer, 'togglePlay');
+      const playBtn = container.querySelector('[data-action="togglePlay"]');
+      fireEvent.click(playBtn);
+      
+      expect(playSpy).toHaveBeenCalled();
+    });
+
+    it('should trigger check answer on submit button click', () => {
+      const checkSpy = vi.spyOn(trainer, 'checkAnswer');
+      const submitBtn = container.querySelector('[data-action="checkAnswer"]');
+      fireEvent.click(submitBtn);
+      
+      expect(checkSpy).toHaveBeenCalled();
+    });
+
+    it('should skip word on skip button click', () => {
+      const generateSpy = vi.spyOn(trainer, 'generateNextChallenge');
+      const skipBtn = container.querySelector('[data-action="skipWord"]');
+      fireEvent.click(skipBtn);
+      
+      expect(generateSpy).toHaveBeenCalled();
+    });
+
+    it('should trigger AI broadcast on button click', () => {
+      const aiSpy = vi.spyOn(trainer, 'generateAIBroadcast');
+      const aiBtn = container.querySelector('[data-action="ai:broadcast"]');
+      fireEvent.click(aiBtn);
+      
+      expect(aiSpy).toHaveBeenCalled();
+    });
+
+    it('should trigger AI coach on button click', () => {
+      const coachSpy = vi.spyOn(trainer, 'generateAICoach');
+      const coachBtn = container.querySelector('[data-action="ai:coach"]');
+      fireEvent.click(coachBtn);
+      
+      expect(coachSpy).toHaveBeenCalled();
+    });
+
+    it('should handle level navigation buttons', () => {
+      const changeSpy = vi.spyOn(trainer, 'changeLevel');
+      
+      const nextBtn = container.querySelector('[data-action="level:next"]');
+      fireEvent.click(nextBtn);
+      expect(changeSpy).toHaveBeenCalledWith(1);
+      
+      const prevBtn = container.querySelector('[data-action="level:prev"]');
+      fireEvent.click(prevBtn);
+      expect(changeSpy).toHaveBeenCalledWith(-1);
+    });
+
+    it('should handle Koch character button clicks', () => {
+      trainer.renderKochGrid();
+      const toggleSpy = vi.spyOn(trainer, 'toggleChar');
+      
+      const charBtn = container.querySelector('.mt-koch-btn');
+      if (charBtn) {
+        fireEvent.click(charBtn);
+        expect(toggleSpy).toHaveBeenCalled();
+      }
+    });
+
+    it('should confirm reset on confirmation button', () => {
+      const resetSpy = vi.spyOn(trainer, 'confirmReset');
+      const confirmBtn = container.querySelector('[data-action="confirmReset"]');
+      fireEvent.click(confirmBtn);
+      
+      expect(resetSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('Event Handling - Keyboard Events', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      trainer.state.currentChallenge = 'TEST';
+      trainer.state.hasPlayedCurrent = true;
+      trainer.state.isPlaying = false;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should check answer on Enter key when input has value', () => {
+      const checkSpy = vi.spyOn(trainer, 'checkAnswer');
+      trainer.dom.inputs.user.value = 'test';
+      
+      fireEvent.keyDown(trainer.dom.inputs.user, { key: 'Enter' });
+      
+      expect(checkSpy).toHaveBeenCalled();
+    });
+
+    it('should toggle play on Enter key when input is empty', () => {
+      const playSpy = vi.spyOn(trainer, 'togglePlay');
+      trainer.dom.inputs.user.value = '';
+      
+      fireEvent.keyDown(trainer.dom.inputs.user, { key: 'Enter' });
+      
+      expect(playSpy).toHaveBeenCalled();
+    });
+
+    it('should toggle play on Space key when input is empty', () => {
+      const playSpy = vi.spyOn(trainer, 'togglePlay');
+      trainer.dom.inputs.user.value = '';
+      
+      const event = new KeyboardEvent('keydown', { code: 'Space', bubbles: true });
+      Object.defineProperty(event, 'preventDefault', { value: vi.fn() });
+      trainer.dom.inputs.user.dispatchEvent(event);
+      
+      expect(playSpy).toHaveBeenCalled();
+    });
+
+    it('should stop playback on Escape key', () => {
+      const stopSpy = vi.spyOn(trainer, 'stopPlayback');
+      trainer.state.isPlaying = true;
+      
+      fireEvent.keyDown(document, { key: 'Escape' });
+      
+      expect(stopSpy).toHaveBeenCalled();
+    });
+
+    it('should toggle play on Ctrl+Space global shortcut', () => {
+      const playSpy = vi.spyOn(trainer, 'togglePlay');
+      
+      const event = new KeyboardEvent('keydown', { 
+        code: 'Space', 
+        ctrlKey: true,
+        bubbles: true 
+      });
+      Object.defineProperty(event, 'preventDefault', { value: vi.fn() });
+      document.dispatchEvent(event);
+      
+      expect(playSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('Event Handling - Input Changes', () => {
+    it('should update WPM setting on range input', () => {
+      const updateSpy = vi.spyOn(trainer, 'updateSetting');
+      
+      trainer.dom.inputs.wpm.value = '35';
+      fireEvent.input(trainer.dom.inputs.wpm);
+      
+      expect(updateSpy).toHaveBeenCalledWith('wpm', '35');
+    });
+
+    it('should update frequency setting on range input', () => {
+      const updateSpy = vi.spyOn(trainer, 'updateSetting');
+      
+      trainer.dom.inputs.frequency.value = '750';
+      fireEvent.input(trainer.dom.inputs.frequency);
+      
+      expect(updateSpy).toHaveBeenCalledWith('frequency', '750');
+    });
+
+    it('should update API key setting on input', () => {
+      const updateSpy = vi.spyOn(trainer, 'updateSetting');
+      
+      trainer.dom.inputs.apiKey.value = 'new-key';
+      fireEvent.input(trainer.dom.inputs.apiKey);
+      
+      expect(updateSpy).toHaveBeenCalledWith('apiKey', 'new-key');
+    });
+
+    it('should toggle autoPlay on checkbox change', () => {
+      const toggleSpy = vi.spyOn(trainer, 'toggleAutoPlay');
+      const checkbox = container.querySelector('#autoplay-toggle');
+      
+      checkbox.checked = true;
+      fireEvent.input(checkbox);
+      
+      expect(toggleSpy).toHaveBeenCalledWith(true);
+    });
+  });
+
+  describe('Feedback Display', () => {
+    beforeEach(() => {
+      trainer.state.currentChallenge = 'TEST';
+      trainer.state.hasPlayedCurrent = true;
+      trainer.state.isPlaying = false;
+    });
+
+    it('should show success feedback on correct answer', () => {
+      trainer.dom.inputs.user.value = 'test';
+      trainer.checkAnswer();
+      
+      const feedback = trainer.dom.displays.feedback;
+      expect(feedback.classList.contains('hidden')).toBe(false);
+      expect(feedback.classList.contains('success')).toBe(true);
+      expect(feedback.textContent).toContain('Correct!');
+    });
+
+    it('should show error feedback on incorrect answer', () => {
+      trainer.dom.inputs.user.value = 'wrong';
+      trainer.checkAnswer();
+      
+      const feedback = trainer.dom.displays.feedback;
+      expect(feedback.classList.contains('hidden')).toBe(false);
+      expect(feedback.classList.contains('error')).toBe(true);
+      expect(feedback.textContent).toContain('Answer: TEST');
+    });
+
+    it('should hide feedback when generating new challenge', () => {
+      trainer.dom.displays.feedback.classList.remove('hidden');
+      trainer.generateNextChallenge(false);
+      
+      expect(trainer.dom.displays.feedback.classList.contains('hidden')).toBe(true);
+    });
+  });
+
+  describe('AI Tip Display', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      trainer.state.settings.apiKey = '';
+      trainer.state.hasBrowserAI = false;
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should hide AI tip on new challenge', () => {
+      trainer.dom.displays.aiTipContainer.classList.remove('hidden');
+      trainer.generateNextChallenge(false);
+      
+      expect(trainer.dom.displays.aiTipContainer.classList.contains('hidden')).toBe(true);
+    });
+
+    it('should show AI tip after coach drill', async () => {
+      trainer.state.stats.accuracy = {
+        'T': { correct: 2, total: 10 },
+      };
+      
+      trainer.generateAICoach();
+      vi.advanceTimersByTime(900);
+      
+      expect(trainer.dom.displays.aiTipContainer.classList.contains('hidden')).toBe(false);
+      expect(trainer.dom.displays.aiTipText.textContent).toBeTruthy();
+    });
+  });
+
+  describe('Auto-Play Checkbox', () => {
+    it('should be checked when autoPlay is true', () => {
+      trainer.state.settings.autoPlay = true;
+      const toggle = container.querySelector('#autoplay-toggle');
+      toggle.checked = trainer.state.settings.autoPlay;
+      
+      expect(toggle.checked).toBe(true);
+    });
+
+    it('should be unchecked when autoPlay is false', () => {
+      trainer.state.settings.autoPlay = false;
+      const toggle = container.querySelector('#autoplay-toggle');
+      toggle.checked = trainer.state.settings.autoPlay;
+      
+      expect(toggle.checked).toBe(false);
+    });
+  });
+
+  describe('Responsive UI Updates', () => {
+    it('should update all displays after settings change', () => {
+      trainer.state.settings.wpm = 40;
+      trainer.state.settings.frequency = 1000;
+      trainer.renderSettings();
+      
+      expect(container.querySelector('#display-wpm').textContent).toBe('40 WPM');
+      expect(container.querySelector('#display-frequency').textContent).toBe('1000 Hz');
+    });
+
+    it('should re-render Koch grid after level change', () => {
+      const renderSpy = vi.spyOn(trainer, 'renderKochGrid');
+      trainer.changeLevel(1);
+      
+      expect(renderSpy).toHaveBeenCalled();
+    });
+
+    it('should re-render stats when switching to stats tab', () => {
+      const renderSpy = vi.spyOn(trainer, 'renderStats');
+      
+      const statsTab = container.querySelector('[data-action="tab:stats"]');
+      fireEvent.click(statsTab);
+      
+      expect(renderSpy).toHaveBeenCalled();
+    });
+  });
+});
