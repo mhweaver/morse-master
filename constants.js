@@ -88,7 +88,21 @@ export const CONTENT_GENERATION = {
   COACH_WEAK_ATTEMPTS_THRESHOLD: 2, // min attempts to be considered "weak"
   COACH_DRILL_GROUPS: 3,         // number of groups in coach drill
   COACH_DRILL_GROUP_LENGTH: 4,   // characters per group in coach drill
-  HISTORY_LIMIT: 100             // max stored history entries
+  HISTORY_LIMIT: 100,            // max stored history entries
+  HISTORY_DISPLAY_LIMIT: 20,     // max history items shown in UI
+  ACCURACY_PRECISION: 100        // percentage rounding base
+};
+
+// --- UI Rendering ---
+export const UI_RENDERING = {
+  HISTORY_DISPLAY_LIMIT: 20,     // max history items shown in stats view
+  TIME_FORMAT_THRESHOLD_SEC: 60,  // threshold before switching to minutes
+  PERCENTAGE_PRECISION: 100       // multiply/divide for percent calculations
+};
+
+// --- Debouncing ---
+export const DEBOUNCE_TIMING = {
+  SETTINGS_SAVE: 500  // milliseconds to debounce settings save
 };
 
 // --- CSS Classes ---

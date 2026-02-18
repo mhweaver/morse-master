@@ -35,17 +35,21 @@ export class ErrorHandler {
    */
   static getUserMessage(errorType, details = {}) {
     const messages = {
-      STORAGE_LOAD: 'Failed to load saved settings. Using defaults.',
-      AUDIO_CONTEXT: 'Unable to initialize audio. Some features may not work.',
-      AI_UNAVAILABLE: 'AI features unavailable. Using local generation mode.',
-      AI_INVALID_RESPONSE: 'AI response validation failed. Retrying...',
-      INVALID_SETTING: `Invalid setting value: ${details.key || 'unknown'}`,
-      DOM_NOT_FOUND: `Required DOM element not found: ${details.selector || 'unknown'}`,
-      NETWORK_ERROR: 'Network error. Please check your connection.',
-      TIMEOUT: 'Operation timed out. Please try again.'
+      STORAGE_LOAD: 'Failed to load saved settings. Using default values.',
+      STORAGE_SAVE: 'Failed to save data to browser storage. Some progress may be lost.',
+      AUDIO_CONTEXT: 'Unable to initialize audio device. Audio playback may not work.',
+      AI_UNAVAILABLE: 'AI service not available. Using local generation mode.',
+      AI_INVALID_RESPONSE: 'AI service returned invalid data. Retrying with fallback...',
+      INVALID_SETTING: `Setting '${details.key || 'unknown'}' has an invalid value: ${details.value || 'undefined'}`,
+      DOM_NOT_FOUND: `Required UI element not found: ${details.selector || 'unknown'}. The interface may not render correctly.`,
+      NETWORK_ERROR: 'Network connection failed. Please check your internet connection.',
+      TIMEOUT: 'Operation timed out. The server may be slow. Please try again.',
+      MORSE_LIB_ERROR: 'Character does not have a Morse code equivalent.',
+      AI_SESSION_ERROR: 'Failed to create AI session. Error: ' + (details.message || 'unknown'),
+      VALIDATE_ERROR: 'Input validation failed. Please check your input.'
     };
 
-    return messages[errorType] || 'An unexpected error occurred.';
+    return messages[errorType] || 'An unexpected error occurred. Please try again.';
   }
 
   /**

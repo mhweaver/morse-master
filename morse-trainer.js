@@ -26,8 +26,22 @@ import {
   UI_FEEDBACK,
   AI_PROMPTS,
   KOCH_LEVELS,
-  DOM_SELECTORS
+  DOM_SELECTORS,
+  UI_RENDERING,
+  DEBOUNCE_TIMING
 } from './constants.js';
+import {
+  getWeakCharacters,
+  calculateAccuracyPercentage,
+  formatTimeElapsed,
+  filterByUnlockedChars,
+  pickRandomItem,
+  createDebounced,
+  cleanMorseText,
+  generateSyntheticChallenge,
+  generateRandomCharacterGroup,
+  pickRandomCharacter
+} from './utils.js';
 
 // --- Class ---
 /**
@@ -58,6 +72,7 @@ export class MorseTrainer {
         this.audioCtx = null;
         this.sessionGain = null;
         this.playbackTimeout = null;
+        this.eventListeners = []; // Track listeners for cleanup
         this.state = {
             settings: this.loadSettings(),
             stats: this.loadStats(),
@@ -70,6 +85,11 @@ export class MorseTrainer {
             aiAPI: null,
             hasPlayedCurrent: false
         };
+
+        // Create debounced settings save (500ms delay)
+        this._debouncedSaveSettings = createDebounced(() => {
+            this.saveSettings();
+        }, DEBOUNCE_TIMING.SETTINGS_SAVE);
 
         // Render Initial DOM Structure
         this.renderStructure();
@@ -333,6 +353,20 @@ export class MorseTrainer {
         if (toggle) toggle.checked = this.state.settings.autoPlay;
 
         // Browser AI Check
+        await this.detectBrowserAI();
+
+        this.bindEvents();
+        this.renderSettings();
+        this.renderGuide();
+        this.switchTab('train');
+    }
+
+    /**
+     * Detect if browser has on-device AI capabilities
+     * Called once during init to avoid repeated checks
+     * @private
+     */
+    async detectBrowserAI() {
         try {
             // Check for window.ai.languageModel (older API)
             if (window.ai && window.ai.languageModel) {
@@ -340,10 +374,11 @@ export class MorseTrainer {
                 if (capabilities && capabilities.available !== 'no') {
                     this.state.hasBrowserAI = true;
                     this.state.aiAPI = 'window.ai';
+                    return;
                 }
             }
             // Check for window.LanguageModel (newer API)
-            else if (window.LanguageModel) {
+            if (window.LanguageModel) {
                 let canUseAI = false;
                 
                 // Try capabilities if available
@@ -370,17 +405,35 @@ export class MorseTrainer {
         } catch (e) { 
             console.log('Browser AI initialization error:', e); 
         }
+    }
 
-        this.bindEvents();
-        this.renderSettings();
-        this.renderGuide();
-        this.switchTab('train');
+    /**
+     * Clean up resources and event listeners
+     * @public
+     */
+    destroy() {
+        this.stopPlayback();
+        
+        // Remove all tracked event listeners
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+        this.eventListeners = [];
+        
+        // Clean up audio context
+        if (this.audioCtx && this.audioCtx.state !== 'closed') {
+            this.audioCtx.close();
+            this.audioCtx = null;
+        }
+        
+        // Clear DOM references
+        this.container.innerHTML = '';
     }
 
     // --- Core Logic ---
     bindEvents() {
         // Event Delegation for all clicks
-        this.container.addEventListener('click', (e) => {
+        const clickHandler = (e) => {
             const trigger = e.target.closest('[data-action]');
             if (!trigger) return;
             
@@ -408,18 +461,22 @@ export class MorseTrainer {
             // Levels
             if (action === 'level:prev') this.changeLevel(-1);
             if (action === 'level:next') this.changeLevel(1);
-        });
+        };
+        this.container.addEventListener('click', clickHandler);
+        this.eventListeners.push({ element: this.container, event: 'click', handler: clickHandler });
 
         // Koch Grid Button Clicks
-        this.container.addEventListener('click', (e) => {
+        const kochClickHandler = (e) => {
             const kochBtn = e.target.closest('.mt-koch-btn');
             if (kochBtn && kochBtn.dataset.char) {
                 this.toggleChar(kochBtn.dataset.char);
             }
-        });
+        };
+        this.container.addEventListener('click', kochClickHandler);
+        this.eventListeners.push({ element: this.container, event: 'click', handler: kochClickHandler });
 
-        // Inputs
-        this.dom.inputs.user.addEventListener('keydown', (e) => {
+        // Inputs - User input keydown
+        const userInputKeydownHandler = (e) => {
             if (e.key === 'Enter') {
                 const isEmpty = !this.dom.inputs.user.value.trim();
                 if (isEmpty) this.togglePlay();
@@ -432,16 +489,20 @@ export class MorseTrainer {
                     this.togglePlay();
                 }
             }
-        });
+        };
+        this.dom.inputs.user.addEventListener('keydown', userInputKeydownHandler);
+        this.eventListeners.push({ element: this.dom.inputs.user, event: 'keydown', handler: userInputKeydownHandler });
 
         // Settings Inputs
         const bindSetting = (el, key) => {
             if (!el) return;
-            el.addEventListener('input', (e) => {
+            const settingChangeHandler = (e) => {
                 const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
                 if (key === 'autoPlay') this.toggleAutoPlay(val);
                 else this.updateSetting(key, val);
-            });
+            };
+            el.addEventListener('input', settingChangeHandler);
+            this.eventListeners.push({ element: el, event: 'input', handler: settingChangeHandler });
         };
         bindSetting(this.dom.inputs.wpm, 'wpm');
         bindSetting(this.dom.inputs.farnsworth, 'farnsworth');
@@ -450,19 +511,27 @@ export class MorseTrainer {
         bindSetting(this.container.querySelector('#autoplay-toggle'), 'autoPlay');
 
         // Global Shortcuts
-        document.addEventListener('keydown', (e) => {
-            if (!this.container.contains(document.activeElement) && document.activeElement !== document.body) return; // Only if focused within app context roughly
+        const globalKeydownHandler = (e) => {
+            // Only apply if focused on document body or within container
+            const isFocusedInApp = !document.activeElement || 
+                                  document.activeElement === document.body || 
+                                  this.container.contains(document.activeElement);
+            if (!isFocusedInApp) return;
 
-            if (e.key === 'Escape' && this.state.isPlaying) this.stopPlayback();
+            if (e.key === 'Escape' && this.state.isPlaying) {
+                this.stopPlayback();
+            }
             
-            const isGlobal = (e.ctrlKey || e.metaKey) && e.code === 'Space';
-            const isContext = e.code === 'Space' && document.activeElement !== this.dom.inputs.user;
+            const isGlobalSpaceShortcut = (e.ctrlKey || e.metaKey) && e.code === 'Space';
+            const isContextSpaceShortcut = e.code === 'Space' && document.activeElement !== this.dom.inputs.user;
 
-            if (isGlobal || isContext) {
+            if (isGlobalSpaceShortcut || isContextSpaceShortcut) {
                 e.preventDefault();
                 this.togglePlay();
             }
-        });
+        };
+        document.addEventListener('keydown', globalKeydownHandler);
+        this.eventListeners.push({ element: document, event: 'keydown', handler: globalKeydownHandler });
     }
 
     /**
@@ -659,12 +728,13 @@ export class MorseTrainer {
      * @private
      */
     getFilteredPool() {
-        const unlocked = this.getUnlockedSet();
-        const f = (list) => list.filter(item => {
-            const txt = item.code || item;
-            return txt.split('').every(c => unlocked.has(c) || c === ' ');
-        });
-        return { words: f(DICTIONARY), abbrs: f(COMMON_ABBR), qcodes: f(Q_CODES), phrases: f(PHRASES) };
+        const unlockedCharSet = this.getUnlockedSet();
+        return {
+            words: filterByUnlockedChars(DICTIONARY, unlockedCharSet),
+            abbrs: filterByUnlockedChars(COMMON_ABBR, unlockedCharSet),
+            qcodes: filterByUnlockedChars(Q_CODES, unlockedCharSet),
+            phrases: filterByUnlockedChars(PHRASES, unlockedCharSet)
+        };
     }
 
     /**
@@ -677,52 +747,42 @@ export class MorseTrainer {
         this.stopPlayback();
         this.dom.displays.aiTipContainer.classList.add(CSS_CLASSES.HIDDEN);
         
-        const unlockedSet = this.getUnlockedSet();
-        const unlockedArray = Array.from(unlockedSet);
-        const pool = this.getFilteredPool();
+        const unlockedCharSet = this.getUnlockedSet();
+        const unlockedCharArray = Array.from(unlockedCharSet);
+        const contentPool = this.getFilteredPool();
         
-        const hasContent = (pool.words.length + pool.abbrs.length + pool.qcodes.length + pool.phrases.length) > 0;
-        const useContent = hasContent && Math.random() < CONTENT_GENERATION.REAL_CONTENT_PROBABILITY;
+        const hasContent = (contentPool.words.length + contentPool.abbrs.length + 
+                          contentPool.qcodes.length + contentPool.phrases.length) > 0;
+        const useRealContent = hasContent && Math.random() < CONTENT_GENERATION.REAL_CONTENT_PROBABILITY;
 
-        let next = '', meaning = '';
+        let nextChallenge = '';
+        let nextMeaning = '';
 
-        if (useContent) {
-            const types = [];
-            if (pool.words.length) types.push('words');
-            if (pool.abbrs.length) types.push('abbrs');
-            if (pool.qcodes.length) types.push('qcodes');
-            if (pool.phrases.length) types.push('phrases');
+        if (useRealContent) {
+            const availableContentTypes = [];
+            if (contentPool.words.length) availableContentTypes.push('words');
+            if (contentPool.abbrs.length) availableContentTypes.push('abbrs');
+            if (contentPool.qcodes.length) availableContentTypes.push('qcodes');
+            if (contentPool.phrases.length) availableContentTypes.push('phrases');
             
-            const type = types[Math.floor(Math.random() * types.length)];
-            const list = pool[type];
-            const item = list[Math.floor(Math.random() * list.length)];
+            const contentType = pickRandomItem(availableContentTypes);
+            const selectedItem = pickRandomItem(contentPool[contentType]);
             
-            if (typeof item === 'string') { next = item; } 
-            else { next = item.code; meaning = item.meaning; }
+            nextChallenge = typeof selectedItem === 'string' ? selectedItem : selectedItem.code;
+            nextMeaning = typeof selectedItem === 'string' ? '' : selectedItem.meaning;
         } else {
-            // Synthetic
-            const groups = [];
-            const numGroups = Math.floor(Math.random() * (CONTENT_GENERATION.SYNTHETIC_GROUPS.max - CONTENT_GENERATION.SYNTHETIC_GROUPS.min + 1)) + CONTENT_GENERATION.SYNTHETIC_GROUPS.min;
-            for(let g=0; g<numGroups; g++) {
-                let s = '';
-                const len = Math.floor(Math.random() * (CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH.max - CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH.min + 1)) + CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH.min;
-                for(let k=0; k<len; k++) {
-                    // Simple random weighting could be added here
-                    s += unlockedArray[Math.floor(Math.random() * unlockedArray.length)];
-                }
-                groups.push(s);
-            }
-            next = groups.join(' ');
+            // Generate synthetic challenge using random characters
+            nextChallenge = generateSyntheticChallenge(unlockedCharArray);
         }
 
-        this.state.currentChallenge = next;
-        this.state.currentMeaning = meaning;
+        this.state.currentChallenge = nextChallenge;
+        this.state.currentMeaning = nextMeaning;
         this.state.hasPlayedCurrent = false;
         this.dom.inputs.user.value = '';
         this.dom.displays.feedback.classList.add('hidden');
         this.renderSubmitButton();
 
-        if (playNow) setTimeout(() => this.playMorse(next), 100);
+        if (playNow) setTimeout(() => this.playMorse(nextChallenge), 100);
     }
 
     /**
@@ -733,37 +793,52 @@ export class MorseTrainer {
     checkAnswer() {
         if (!this.state.currentChallenge || this.state.isPlaying || !this.state.hasPlayedCurrent) return;
         
-        const guess = this.dom.inputs.user.value.toUpperCase().trim();
-        const correct = this.state.currentChallenge.toUpperCase();
-        const isCorrect = guess === correct;
+        const userAnswer = this.dom.inputs.user.value.toUpperCase().trim();
+        const correctAnswer = this.state.currentChallenge.toUpperCase();
+        const isCorrect = userAnswer === correctAnswer;
 
-        // Stats update
-        correct.split('').forEach(c => {
-            if (!MORSE_LIB[c]) return;
-            if (!this.state.stats.accuracy[c]) this.state.stats.accuracy[c] = {correct:0, total:0};
-            this.state.stats.accuracy[c].total++;
-            if (isCorrect) this.state.stats.accuracy[c].correct++;
+        // Update accuracy statistics
+        correctAnswer.split('').forEach(character => {
+            if (!MORSE_LIB[character]) return;
+            if (!this.state.stats.accuracy[character]) {
+                this.state.stats.accuracy[character] = { correct: 0, total: 0 };
+            }
+            this.state.stats.accuracy[character].total++;
+            if (isCorrect) {
+                this.state.stats.accuracy[character].correct++;
+            }
         });
         
-        this.state.stats.history.unshift({ challenge: correct, input: guess, correct: isCorrect, timestamp: Date.now() });
+        // Update history
+        this.state.stats.history.unshift({
+            challenge: correctAnswer,
+            input: userAnswer,
+            correct: isCorrect,
+            timestamp: Date.now()
+        });
         this.state.stats.history = this.state.stats.history.slice(0, CONTENT_GENERATION.HISTORY_LIMIT);
-        this.saveStats();
+        this.saveStats(); // Save stats immediately, not debounced
 
-        const fb = this.dom.displays.feedback;
-        fb.classList.remove('hidden', CSS_CLASSES.SUCCESS, CSS_CLASSES.ERROR); // CSS classes instead of utility classes for modularity
+        // Show feedback
+        const feedbackElement = this.dom.displays.feedback;
+        feedbackElement.classList.remove('hidden', CSS_CLASSES.SUCCESS, CSS_CLASSES.ERROR);
         
         if (isCorrect) {
-            fb.classList.add(CSS_CLASSES.SUCCESS);
-            fb.textContent = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
+            feedbackElement.classList.add(CSS_CLASSES.SUCCESS);
+            feedbackElement.textContent = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
             if (this.state.activeTab === 'train') {
                 const delay = this.state.settings.autoPlay ? PLAYBACK_DELAYS.AUTO_PLAY_NEXT : 0;
-                if (this.state.settings.autoPlay) setTimeout(() => this.generateNextChallenge(true), delay);
-                else this.generateNextChallenge(false); // Prep next but wait
+                if (this.state.settings.autoPlay) {
+                    setTimeout(() => this.generateNextChallenge(true), delay);
+                } else {
+                    this.generateNextChallenge(false); // Prep next but wait
+                }
             }
             this.checkAutoLevel();
         } else {
-            fb.classList.add(CSS_CLASSES.ERROR);
-            fb.textContent = `You: ${guess || UI_FEEDBACK.EMPTY_INPUT} | Answer: ${correct}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
+            feedbackElement.classList.add(CSS_CLASSES.ERROR);
+            const displayedUserAnswer = userAnswer || UI_FEEDBACK.EMPTY_INPUT;
+            feedbackElement.textContent = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
         }
     }
 
@@ -773,13 +848,21 @@ export class MorseTrainer {
      */
     checkAutoLevel() {
         if (!this.state.settings.autoLevel) return;
-        const h = this.state.stats.history;
-        if (h.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) return;
-        const rec = h.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
-        const acc = (rec.filter(x => x.correct).length / rec.length) * 100;
+        
+        const recentHistory = this.state.stats.history;
+        if (recentHistory.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) return;
+        
+        const recentDrills = recentHistory.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
+        const correctCount = recentDrills.filter(entry => entry.correct).length;
+        const accuracyPercentage = (correctCount / recentDrills.length) * 100;
 
-        if (acc >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY && this.state.settings.lessonLevel < KOCH_SEQUENCE.length) this.changeLevel(1);
-        else if (acc < AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY && this.state.settings.lessonLevel > LEVEL_LIMITS.MIN) this.changeLevel(-1);
+        if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY && 
+            this.state.settings.lessonLevel < KOCH_SEQUENCE.length) {
+            this.changeLevel(1);
+        } else if (accuracyPercentage < AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY && 
+                   this.state.settings.lessonLevel > LEVEL_LIMITS.MIN) {
+            this.changeLevel(-1);
+        }
     }
 
     /**
@@ -823,151 +906,190 @@ export class MorseTrainer {
 
     // --- AI / Offline Simulation ---
     /**
+     * Create an AI language model session
+     * Supports both old (window.ai) and new (window.LanguageModel) APIs
+     * @returns {Promise<Object>} AI session object with prompt method
+     * @throws {Error} If neither API is available
+     * @private
+     */
+    async createAISession() {
+        if (this.state.aiAPI === 'LanguageModel') {
+            return await window.LanguageModel.create({ language: 'en' });
+        } else if (this.state.aiAPI === 'window.ai') {
+            return await window.ai.languageModel.create();
+        }
+        throw new Error('No AI API available');
+    }
+
+    /**
      * Generate AI-powered broadcast: Creates realistic sentences from unlocked characters
      * Falls back to offline simulation if AI unavailable
      * @public
      */
     async generateAIBroadcast() {
         this.stopPlayback();
-        const fb = this.dom.displays.feedback;
-        fb.classList.remove(CSS_CLASSES.HIDDEN, CSS_CLASSES.ERROR, CSS_CLASSES.SUCCESS);
-        fb.classList.add(CSS_CLASSES.INFO);
-        fb.textContent = UI_FEEDBACK.INTERCEPTING;
+        const feedbackElement = this.dom.displays.feedback;
+        feedbackElement.classList.remove(CSS_CLASSES.HIDDEN, CSS_CLASSES.ERROR, CSS_CLASSES.SUCCESS);
+        feedbackElement.classList.add(CSS_CLASSES.INFO);
+        feedbackElement.textContent = UI_FEEDBACK.INTERCEPTING;
 
         if (!this.state.settings.apiKey && !this.state.hasBrowserAI) {
             // Offline Simulation
-            setTimeout(() => {
-                const pool = this.getFilteredPool();
-                const parts = [];
-                if (Math.random() > 0.5 && pool.abbrs.length) parts.push(pool.abbrs[Math.floor(Math.random()*pool.abbrs.length)].code);
-                if (pool.words.length) parts.push(pool.words[Math.floor(Math.random()*pool.words.length)]);
-                if (Math.random() > 0.5 && pool.qcodes.length) parts.push(pool.qcodes[Math.floor(Math.random()*pool.qcodes.length)].code);
-                
-                const validParts = parts.filter(p => p.split('').every(c => this.getUnlockedSet().has(c)));
-                
-                if (validParts.length > 0) {
-                    this.state.currentChallenge = validParts.join(' ');
-                    this.state.currentMeaning = UI_FEEDBACK.SIMULATED_BROADCAST;
-                } else {
-                    this.generateNextChallenge(false);
-                    this.state.currentMeaning = UI_FEEDBACK.WEAK_SIGNAL;
-                }
-                
-                this.dom.inputs.user.value = '';
-                fb.classList.add(CSS_CLASSES.HIDDEN);
-                this.playMorse(this.state.currentChallenge);
-            }, PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
+            setTimeout(() => this.generateAIBroadcastOffline(), PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
             return;
         }
 
         // Browser AI Logic
         if (this.state.hasBrowserAI) {
             try {
-                let session;
-                if (this.state.aiAPI === 'LanguageModel') {
-                    session = await window.LanguageModel.create({ language: 'en' });
-                } else {
-                    session = await window.ai.languageModel.create();
-                }
-                const prompt = AI_PROMPTS.BROADCAST(Array.from(this.getUnlockedSet()).join(', '));
+                const session = await this.createAISession();
+                const unlockedCharacters = Array.from(this.getUnlockedSet()).join(', ');
+                const prompt = AI_PROMPTS.BROADCAST(unlockedCharacters);
                 const result = await session.prompt(prompt);
                 session.destroy(); // Clean up session
                 
                 // Parse and validate the result
-                const text = result.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
+                const cleanedText = cleanMorseText(result);
                 const unlockedSet = this.getUnlockedSet();
-                const validText = text.split('').every(c => c === ' ' || unlockedSet.has(c));
+                const isValidText = cleanedText.split('').every(char => char === ' ' || unlockedSet.has(char));
                 
-                if (validText && text.trim()) {
-                    this.state.currentChallenge = text.trim();
+                if (isValidText && cleanedText.trim()) {
+                    this.state.currentChallenge = cleanedText.trim();
                     this.state.currentMeaning = UI_FEEDBACK.AI_BROADCAST;
                     this.dom.inputs.user.value = '';
-                    fb.classList.add(CSS_CLASSES.HIDDEN);
+                    feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
                     this.playMorse(this.state.currentChallenge);
                 } else {
-                    // Fallback to offline if AI response isn't valid
                     throw new Error('Invalid AI response');
                 }
-            } catch (e) {
-                console.log('Browser AI generation failed:', e.message);
+            } catch (error) {
+                console.log('Browser AI generation failed:', error.message);
                 // Fallback to offline simulation
-                fb.textContent = UI_FEEDBACK.AI_FAILED;
+                feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
                 setTimeout(() => this.generateAIBroadcast(), PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
                 this.state.hasBrowserAI = false;
             }
         }
     }
-    
+
+    /**
+     * Generate offline broadcast simulation
+     * @private
+     */
+    generateAIBroadcastOffline() {
+        const contentPool = this.getFilteredPool();
+        const broadcastParts = [];
+        
+        if (Math.random() > 0.5 && contentPool.abbrs.length) {
+            const selectedAbbr = pickRandomItem(contentPool.abbrs);
+            broadcastParts.push(selectedAbbr.code);
+        }
+        if (contentPool.words.length) {
+            broadcastParts.push(pickRandomItem(contentPool.words));
+        }
+        if (Math.random() > 0.5 && contentPool.qcodes.length) {
+            const selectedQCode = pickRandomItem(contentPool.qcodes);
+            broadcastParts.push(selectedQCode.code);
+        }
+        
+        const validParts = broadcastParts.filter(part => 
+            part.split('').every(char => this.getUnlockedSet().has(char))
+        );
+        
+        const feedbackElement = this.dom.displays.feedback;
+        if (validParts.length > 0) {
+            this.state.currentChallenge = validParts.join(' ');
+            this.state.currentMeaning = UI_FEEDBACK.SIMULATED_BROADCAST;
+        } else {
+            this.generateNextChallenge(false);
+            this.state.currentMeaning = UI_FEEDBACK.WEAK_SIGNAL;
+        }
+        
+        this.dom.inputs.user.value = '';
+        feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+        this.playMorse(this.state.currentChallenge);
+    }
+
     /**
      * Generate AI-powered smart drill: Targets weak characters from accuracy history
      * Falls back to offline simulation if AI unavailable
      * @public
      */
     async generateAICoach() {
-        // Similar fallback logic as broadcast
         this.stopPlayback();
-        const fb = this.dom.displays.feedback;
-        fb.classList.remove(CSS_CLASSES.HIDDEN);
-        fb.textContent = UI_FEEDBACK.CONSULTING;
+        const feedbackElement = this.dom.displays.feedback;
+        feedbackElement.classList.remove(CSS_CLASSES.HIDDEN);
+        feedbackElement.textContent = UI_FEEDBACK.CONSULTING;
         
         if (!this.state.settings.apiKey && !this.state.hasBrowserAI) {
-            setTimeout(() => {
-                const weak = Object.entries(this.state.stats.accuracy).filter(([_, d]) => d.total > CONTENT_GENERATION.COACH_WEAK_ATTEMPTS_THRESHOLD && d.correct/d.total < CONTENT_GENERATION.COACH_WEAK_ACCURACY_THRESHOLD).map(x=>x[0]);
-                const pool = weak.length ? weak : Array.from(this.getUnlockedSet());
-                const groups = [];
-                for(let i=0; i<CONTENT_GENERATION.COACH_DRILL_GROUPS; i++) {
-                    let s = ''; 
-                    for(let k=0; k<CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH; k++) s+= pool[Math.floor(Math.random()*pool.length)];
-                    groups.push(s);
-                }
-                this.state.currentChallenge = groups.join(' ');
-                this.state.currentMeaning = UI_FEEDBACK.OFFLINE_COACH;
-                this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
-                this.dom.displays.aiTipText.textContent = weak.length ? UI_FEEDBACK.WEAK_CHARS_MESSAGE : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
-                fb.classList.add(CSS_CLASSES.HIDDEN);
-                this.playMorse(this.state.currentChallenge);
-            }, PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
+            setTimeout(() => this.generateAICoachOffline(), PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
             return;
         }
 
         // Browser AI Logic
         if (this.state.hasBrowserAI) {
             try {
-                const weak = Object.entries(this.state.stats.accuracy).filter(([_, d]) => d.total > CONTENT_GENERATION.COACH_WEAK_ATTEMPTS_THRESHOLD && d.correct/d.total < CONTENT_GENERATION.COACH_WEAK_ACCURACY_THRESHOLD).map(x=>x[0]);
-                let session;
-                if (this.state.aiAPI === 'LanguageModel') {
-                    session = await window.LanguageModel.create({ language: 'en' });
-                } else {
-                    session = await window.ai.languageModel.create();
-                }
-                const focusChars = weak.length ? weak : Array.from(this.getUnlockedSet());
-                const prompt = AI_PROMPTS.COACH(focusChars.join(', '), Array.from(this.getUnlockedSet()).join(', '));
+                const weakCharacters = getWeakCharacters(this.state.stats.accuracy);
+                const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet());
+                
+                const session = await this.createAISession();
+                const allUnlockedCharacters = Array.from(this.getUnlockedSet()).join(', ');
+                const prompt = AI_PROMPTS.COACH(focusCharacters.join(', '), allUnlockedCharacters);
                 const result = await session.prompt(prompt);
                 session.destroy(); // Clean up session
                 
                 // Parse and validate the result
-                const text = result.toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
+                const cleanedText = cleanMorseText(result);
                 const unlockedSet = this.getUnlockedSet();
-                const validText = text.split('').every(c => c === ' ' || unlockedSet.has(c));
+                const isValidText = cleanedText.split('').every(char => char === ' ' || unlockedSet.has(char));
                 
-                if (validText && text) {
-                    this.state.currentChallenge = text;
+                if (isValidText && cleanedText.trim()) {
+                    this.state.currentChallenge = cleanedText;
                     this.state.currentMeaning = "Smart Coach (AI)";
                     this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
-                    this.dom.displays.aiTipText.textContent = weak.length ? UI_FEEDBACK.WEAK_CHARS_MESSAGE : UI_FEEDBACK.DRILL_GENERATED_MESSAGE;
-                    fb.classList.add(CSS_CLASSES.HIDDEN);
+                    const tipMessage = weakCharacters.length > 0 ? 
+                        UI_FEEDBACK.WEAK_CHARS_MESSAGE : 
+                        UI_FEEDBACK.DRILL_GENERATED_MESSAGE;
+                    this.dom.displays.aiTipText.textContent = tipMessage;
+                    feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
                     this.playMorse(this.state.currentChallenge);
                 } else {
                     throw new Error('Invalid AI response');
                 }
-            } catch (e) {
-                console.log('Browser AI coach failed:', e.message);
+            } catch (error) {
+                console.log('Browser AI coach failed:', error.message);
                 // Fallback to offline simulation
-                fb.textContent = UI_FEEDBACK.AI_FAILED;
+                feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
                 setTimeout(() => this.generateAICoach(), PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
                 this.state.hasBrowserAI = false;
             }
         }
+    }
+
+    /**
+     * Generate offline coach drill simulation
+     * @private
+     */
+    generateAICoachOffline() {
+        const weakCharacters = getWeakCharacters(this.state.stats.accuracy);
+        const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet());
+        
+        const groups = [];
+        for (let i = 0; i < CONTENT_GENERATION.COACH_DRILL_GROUPS; i++) {
+            groups.push(generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
+        }
+        
+        this.state.currentChallenge = groups.join(' ');
+        this.state.currentMeaning = UI_FEEDBACK.OFFLINE_COACH;
+        this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
+        const tipMessage = weakCharacters.length > 0 ? 
+            UI_FEEDBACK.WEAK_CHARS_MESSAGE : 
+            UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
+        this.dom.displays.aiTipText.textContent = tipMessage;
+        
+        const feedbackElement = this.dom.displays.feedback;
+        feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+        this.playMorse(this.state.currentChallenge);
     }
 
     // --- Render Helpers ---
@@ -1002,25 +1124,29 @@ export class MorseTrainer {
     }
 
     /**
-     * Update individual setting value
+     * Update individual setting value and trigger immediate UI update
      * @param {string} key - Setting key
-     * @param {any} val - New value
+     * @param {any} newValue - New value
      * @private
      */
-    updateSetting(key, val) {
-        if(key === 'apiKey') this.state.settings.apiKey = val.trim();
-        else this.state.settings[key] = key === 'autoPlay' ? val : parseInt(val);
+    updateSetting(key, newValue) {
+        if (key === 'apiKey') {
+            this.state.settings.apiKey = newValue.trim();
+        } else {
+            this.state.settings[key] = key === 'autoPlay' ? newValue : parseInt(newValue);
+        }
         this.renderSettings();
+        this._debouncedSaveSettings(); // Save after UI update
     }
 
     /**
      * Toggle auto-play setting on/off
-     * @param {boolean} val - New auto-play state
+     * @param {boolean} newValue - New auto-play state
      * @private
      */
-    toggleAutoPlay(val) {
-        this.state.settings.autoPlay = val;
-        this.saveSettings();
+    toggleAutoPlay(newValue) {
+        this.state.settings.autoPlay = newValue;
+        this._debouncedSaveSettings();
     }
 
     /**
@@ -1178,30 +1304,26 @@ export class MorseTrainer {
      * @private
      */
     renderStats() {
-        const accuracyDiv = this.domCache.query('#stat-accuracy');
-        const drillsDiv = this.domCache.query('#stat-drills');
+        const accuracyElement = this.domCache.query('#stat-accuracy');
+        const drillsElement = this.domCache.query('#stat-drills');
         const historyList = this.domCache.query('#history-list');
 
-        if (accuracyDiv) {
-            const acc = this.state.stats.accuracy;
-            const totalCorrect = Object.values(acc).reduce((sum, d) => sum + d.correct, 0);
-            const totalAttempts = Object.values(acc).reduce((sum, d) => sum + d.total, 0);
-            const pct = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
-            accuracyDiv.textContent = pct + '%';
+        if (accuracyElement) {
+            const accuracyPercentage = calculateAccuracyPercentage(this.state.stats.accuracy);
+            accuracyElement.textContent = accuracyPercentage + '%';
         }
 
-        if (drillsDiv) {
-            drillsDiv.textContent = this.state.stats.history.length;
+        if (drillsElement) {
+            drillsElement.textContent = this.state.stats.history.length;
         }
 
         if (historyList) {
             const fragment = document.createDocumentFragment();
-            this.state.stats.history.slice(0, 20).forEach((entry, idx) => {
+            this.state.stats.history.slice(0, UI_RENDERING.HISTORY_DISPLAY_LIMIT).forEach((entry) => {
                 const item = document.createElement('div');
                 item.className = `mt-history-item ${entry.correct ? CSS_CLASSES.SUCCESS : CSS_CLASSES.ERROR}`;
-                const timeago = Math.round((Date.now() - entry.timestamp) / 1000);
-                const timeStr = timeago < 60 ? timeago + 's' : (Math.round(timeago / 60) + 'm');
-                item.innerHTML = `<span class="mt-history-result">${entry.correct ? '✓' : '✗'}</span> <span class="mt-history-text">${entry.challenge}</span> <span class="mt-history-time">${timeStr} ago</span>`;
+                const timeElapsedFormatted = formatTimeElapsed(Date.now() - entry.timestamp);
+                item.innerHTML = `<span class="mt-history-result">${entry.correct ? '✓' : '✗'}</span> <span class="mt-history-text">${entry.challenge}</span> <span class="mt-history-time">${timeElapsedFormatted} ago</span>`;
                 fragment.appendChild(item);
             });
             historyList.innerHTML = '';
