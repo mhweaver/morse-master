@@ -3,72 +3,53 @@
  * Encapsulated ES Module for easy embedding.
  */
 
-// --- Constants & Data ---
-const MORSE_LIB = {
-    'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.',
-    'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..',
-    'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.',
-    'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
-    'Y': '-.--', 'Z': '--..', '1': '.----', '2': '..---', '3': '...--',
-    '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..',
-    '9': '----.', '0': '-----', '/': '-..-.', '?': '..--..', '.': '.-.-.-',
-    ',': '--..'
-};
-
-const KOCH_SEQUENCE = "KMRSUAPTLOWI.NJEF0Y,VG5/Q9ZH38B?427C1D6X".split('');
-
-const COMMON_ABBR = [
-    { code: "CQ", meaning: "Calling any station" }, { code: "DE", meaning: "From" }, { code: "RST", meaning: "Signal report" },
-    { code: "QTH", meaning: "Location" }, { code: "OP", meaning: "Operator" }, { code: "HW", meaning: "How copy?" },
-    { code: "BK", meaning: "Back / Break" }, { code: "SK", meaning: "End of contact" }, { code: "TU", meaning: "Thank you" },
-    { code: "73", meaning: "Best regards" }, { code: "GA", meaning: "Go ahead" }, { code: "GM", meaning: "Good morning" },
-    { code: "GN", meaning: "Good night" }, { code: "UR", meaning: "Your / You are" }, { code: "WX", meaning: "Weather" },
-    { code: "FB", meaning: "Fine Business (Good)" }, { code: "OM", meaning: "Old Man (Friend)" }, { code: "YL", meaning: "Young Lady" },
-    { code: "XYL", meaning: "Wife" }, { code: "RIG", meaning: "Radio equipment" }, { code: "ANT", meaning: "Antenna" },
-    { code: "HR", meaning: "Here" }, { code: "ES", meaning: "And" }, { code: "FER", meaning: "For" }
-];
-
-const Q_CODES = [
-    { code: "QRL", meaning: "Are you busy?" }, { code: "QRM", meaning: "Interference" }, { code: "QRN", meaning: "Static" },
-    { code: "QRO", meaning: "Increase power" }, { code: "QRP", meaning: "Low power" }, { code: "QRQ", meaning: "Send faster" },
-    { code: "QRS", meaning: "Send slower" }, { code: "QRT", meaning: "Stop sending" }, { code: "QRV", meaning: "I am ready" },
-    { code: "QRZ", meaning: "Who is calling?" }, { code: "QSB", meaning: "Fading signal" }, { code: "QSL", meaning: "Acknowledged" },
-    { code: "QSY", meaning: "Change freq" }, { code: "QRL?", meaning: "Are you busy?" }, { code: "QRV?", meaning: "Are you ready?" },
-    { code: "QTH?", meaning: "Location?" }
-];
-
-const PHRASES = [
-    "TNX FER CALL", "MY NAME IS", "UR RST IS 5NN", "QTH IS NEW YORK", "FB OM TU 73", "QRZ DE K1ABC",
-    "WX HR IS SUNNY", "RIG HR IS QRP", "HW CPY? BK", "GM OM GA", "NAME?", "QTH?", "RST?", "RIG?",
-    "AGE?", "CALL?", "K1ABC/P", "W1AW/3", "FREQ?", "QSL?", "R.I.P.", "U.S.A.", "JAN.", "FEB.",
-    "A, B, C", "1, 2, 3", "NOW, LATER"
-];
-
-const DICTIONARY = [
-    "US", "SUM", "AS", "ASK", "ARK", "ARM", "RAM", "AM", "MAP", "SAP", "SUP", "UP", "PAPA", "SPAM", "PUMP",
-    "AT", "MAT", "PAT", "TAP", "SAT", "RAT", "PART", "TRAP", "STAR", "START", "TART", "PUT", "RUT", "MUST",
-    "TRUST", "PAST", "MAST", "ALL", "TALL", "PAL", "LAP", "SLAP", "LULL", "PULL", "PLUM", "SLUM", "ALARM",
-    "ALTAR", "SALT", "POT", "TOP", "LOT", "ROT", "TO", "SO", "OR", "OUR", "OUT", "LOOP", "TOOL", "POOL",
-    "ROOT", "MOP", "POP", "SOP", "LOOT", "TROOP", "MOTOR", "ROTOR", "SOLO", "TOTAL", "POOR", "TOUR", "LOW",
-    "ROW", "TOW", "BOW", "SOW", "MOW", "PAW", "LAW", "SAW", "RAW", "WAR", "WAS", "WOOL", "SLOW", "FLOW",
-    "BLOW", "GLOW", "WAIT", "WALL", "WILL", "THE", "AND", "FOR", "ARE", "BUT", "NOT", "YOU", "ANY", "CAN",
-    "HAD", "HER", "ONE", "DAY", "GET", "HAS", "HIM", "RADIO", "POWER", "SIGNAL", "HAM", "KEY", "MORSE", "TIME", "WORD", "NAME"
-];
-
-// --- Icons (Inline SVG to avoid external deps) ---
-const ICONS = {
-    play: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`,
-    stop: `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>`,
-    settings: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.72l-.15.1a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.72l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
-    skip: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>`,
-    zap: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>`,
-    ai: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>`,
-    check: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
-    x: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
-};
+import { DOMCache, DOMBatch } from './dom-utils.js';
+import { ErrorHandler, AICallWrapper } from './error-handler.js';
+import {
+  MORSE_LIB,
+  KOCH_SEQUENCE,
+  COMMON_ABBR,
+  Q_CODES,
+  PHRASES,
+  DICTIONARY,
+  ICONS,
+  STORAGE_KEYS,
+  DEFAULT_SETTINGS,
+  DEFAULT_STATS,
+  SETTINGS_RANGES,
+  AUDIO_TIMING,
+  PLAYBACK_DELAYS,
+  AUTO_LEVEL_CONFIG,
+  LEVEL_LIMITS,
+  CONTENT_GENERATION,
+  CSS_CLASSES,
+  UI_FEEDBACK,
+  AI_PROMPTS,
+  KOCH_LEVELS,
+  DOM_SELECTORS
+} from './constants.js';
 
 // --- Class ---
+/**
+ * MorseTrainer - A comprehensive Morse code training application
+ * 
+ * Features:
+ * - Adaptive difficulty using the Koch method
+ * - Farnsworth timing for realistic practice
+ * - Audio synthesis with customizable speed and tone
+ * - Progress tracking with accuracy statistics
+ * - AI-powered drill generation (with fallbacks)
+ * 
+ * @example
+ * const container = document.getElementById('trainer');
+ * const trainer = new MorseTrainer(container);
+ */
 export class MorseTrainer {
+    /**
+     * Initialize MorseTrainer
+     * @param {HTMLElement} containerElement - DOM element to mount the trainer
+     * @throws {Error} If container element is not provided
+     */
     constructor(containerElement) {
         if (!containerElement) throw new Error("MorseTrainer: Target element required");
         this.container = containerElement;
@@ -92,6 +73,9 @@ export class MorseTrainer {
 
         // Render Initial DOM Structure
         this.renderStructure();
+        
+        // Initialize DOM Cache for dynamic queries
+        this.domCache = new DOMCache(this.container);
         
         // Cache DOM References
         this.dom = {
@@ -277,16 +261,16 @@ export class MorseTrainer {
                         </div>
                         <div class="mt-modal-body">
                             <div class="mt-form-group">
-                                <label>Char Speed <span id="display-wpm">20 WPM</span></label>
-                                <input type="range" id="input-wpm" min="15" max="45" data-action="setting:wpm">
+                                <label>Char Speed <span id="display-wpm">${DEFAULT_SETTINGS.wpm} WPM</span></label>
+                                <input type="range" id="input-wpm" min="${SETTINGS_RANGES.wpm.min}" max="${SETTINGS_RANGES.wpm.max}" data-action="setting:wpm">
                             </div>
                             <div class="mt-form-group">
-                                <label>Effective Speed <span id="display-farnsworth">12 WPM</span></label>
-                                <input type="range" id="input-farnsworth" min="5" max="45" data-action="setting:farnsworth">
+                                <label>Effective Speed <span id="display-farnsworth">${DEFAULT_SETTINGS.farnsworthWpm} WPM</span></label>
+                                <input type="range" id="input-farnsworth" min="${SETTINGS_RANGES.farnsworthWpm.min}" max="${SETTINGS_RANGES.farnsworthWpm.max}" data-action="setting:farnsworth">
                             </div>
                             <div class="mt-form-group">
-                                <label>Tone Frequency <span id="display-frequency">600 Hz</span></label>
-                                <input type="range" id="input-frequency" min="300" max="1200" step="50" data-action="setting:frequency">
+                                <label>Tone Frequency <span id="display-frequency">${DEFAULT_SETTINGS.frequency} Hz</span></label>
+                                <input type="range" id="input-frequency" min="${SETTINGS_RANGES.frequency.min}" max="${SETTINGS_RANGES.frequency.max}" step="${SETTINGS_RANGES.frequency.step}" data-action="setting:frequency">
                             </div>
                             <div class="mt-form-group border-top">
                                 <label>Gemini API Key (Optional)</label>
@@ -481,33 +465,100 @@ export class MorseTrainer {
         });
     }
 
+    /**
+     * Load saved settings from localStorage
+     * @returns {Object} Settings object with wpm, frequency, leveland other preferences
+     * @private
+     */
     loadSettings() {
-        const def = { wpm: 20, farnsworthWpm: 12, frequency: 600, volume: 0.5, lessonLevel: 2, autoLevel: true, autoPlay: true, apiKey: '', manualChars: [] };
-        try { return JSON.parse(localStorage.getItem('morse-settings-v3')) || def; } catch { return def; }
+        try {
+            const loaded = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS));
+            if (loaded) {
+                // Validate loaded settings
+                const validation = ErrorHandler.validateSettings(loaded, SETTINGS_RANGES);
+                if (!validation.valid) {
+                    console.warn('Settings validation failed:', validation.errors.join(', '));
+                }
+                return loaded;
+            }
+            // Return a copy to avoid shared reference issues
+            return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+        } catch (error) {
+            ErrorHandler.logError(error, 'Loading settings from localStorage');
+            return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+        }
     }
 
-    saveSettings() { localStorage.setItem('morse-settings-v3', JSON.stringify(this.state.settings)); }
+    /**
+     * Persist settings to localStorage
+     * @private
+     */
+    saveSettings() {
+        try {
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(this.state.settings));
+        } catch (error) {
+            ErrorHandler.logError(error, 'Saving settings to localStorage', {
+                settingsKeys: Object.keys(this.state.settings)
+            });
+        }
+    }
     
+    /**
+     * Load saved statistics from localStorage
+     * @returns {Object} Stats object with history array and accuracy map
+     * @private
+     */
     loadStats() {
-        const def = { history: [], accuracy: {} };
-        try { return JSON.parse(localStorage.getItem('morse-stats-v2')) || def; } catch { return def; }
+        try {
+            const loaded = JSON.parse(localStorage.getItem(STORAGE_KEYS.STATS));
+            if (loaded && typeof loaded === 'object') {
+                return loaded;
+            }
+            // Return a copy to avoid shared reference issues
+            return JSON.parse(JSON.stringify(DEFAULT_STATS));
+        } catch (error) {
+            ErrorHandler.logError(error, 'Loading stats from localStorage');
+            return JSON.parse(JSON.stringify(DEFAULT_STATS));
+        }
     }
     
-    saveStats() { localStorage.setItem('morse-stats-v2', JSON.stringify(this.state.stats)); }
+    /**
+     * Persist statistics to localStorage
+     * @private
+     */
+    saveStats() {
+        try {
+            localStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(this.state.stats));
+        } catch (error) {
+            ErrorHandler.logError(error, 'Saving stats to localStorage', {
+                historyLength: this.state.stats.history.length,
+                accuracyKeys: Object.keys(this.state.stats.accuracy).length
+            });
+        }
+    }
 
+    /**
+     * Get or create Web Audio API context
+     * @returns {AudioContext} The audio context instance
+     * @private
+     */
     getAudioContext() {
         if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         return this.audioCtx;
     }
 
+    /**
+     * Stop current audio playback and clean up audio resources
+     * @private
+     */
     stopPlayback() {
         if (this.playbackTimeout) { clearTimeout(this.playbackTimeout); this.playbackTimeout = null; }
         if (this.sessionGain) {
             const now = this.audioCtx.currentTime;
             this.sessionGain.gain.cancelScheduledValues(now);
-            this.sessionGain.gain.linearRampToValueAtTime(0, now + 0.05);
+            this.sessionGain.gain.linearRampToValueAtTime(0, now + AUDIO_TIMING.SESSION_GAIN_RAMP);
             const sg = this.sessionGain;
-            setTimeout(() => sg.disconnect(), 60);
+            setTimeout(() => sg.disconnect(), AUDIO_TIMING.SESSION_GAIN_DISCONNECT);
             this.sessionGain = null;
         }
         this.state.isPlaying = false;
@@ -515,6 +566,12 @@ export class MorseTrainer {
         this.renderSubmitButton();
     }
 
+    /**
+     * Play Morse code audio for given text using Web Audio API
+     * Synthesizes sine wave with Farnsworth timing
+     * @param {string} text - Text to convert to Morse code and play
+     * @private
+     */
     async playMorse(text) {
         if (this.state.isPlaying) { this.stopPlayback(); return; }
         if (!text) return;
@@ -531,12 +588,12 @@ export class MorseTrainer {
         this.sessionGain = ctx.createGain();
         this.sessionGain.connect(ctx.destination);
 
-        let currentTime = ctx.currentTime + 0.1;
-        const dotTime = 1.2 / this.state.settings.wpm;
-        const dashTime = dotTime * 3;
-        const fRatio = 1.2 / this.state.settings.farnsworthWpm;
-        const charSpace = fRatio * 3;
-        const wordSpace = fRatio * 7;
+        let currentTime = ctx.currentTime + AUDIO_TIMING.AUDIO_START_DELAY;
+        const dotTime = AUDIO_TIMING.DOT_MULTIPLIER / this.state.settings.wpm;
+        const dashTime = dotTime * AUDIO_TIMING.DASH_MULTIPLIER;
+        const fRatio = AUDIO_TIMING.DOT_MULTIPLIER / this.state.settings.farnsworthWpm;
+        const charSpace = fRatio * AUDIO_TIMING.char_SPACE_MULTIPLIER;
+        const wordSpace = fRatio * AUDIO_TIMING.WORD_SPACE_MULTIPLIER;
 
         for (const char of text.toUpperCase().split('')) {
             if (char === ' ') {
@@ -556,8 +613,8 @@ export class MorseTrainer {
                 osc.frequency.setValueAtTime(this.state.settings.frequency, currentTime);
                 
                 gain.gain.setValueAtTime(0, currentTime);
-                gain.gain.linearRampToValueAtTime(this.state.settings.volume, currentTime + 0.005);
-                gain.gain.setValueAtTime(this.state.settings.volume, currentTime + d - 0.005);
+                gain.gain.linearRampToValueAtTime(this.state.settings.volume, currentTime + AUDIO_TIMING.AMPLITUDE_RAMP_UP);
+                gain.gain.setValueAtTime(this.state.settings.volume, currentTime + d - AUDIO_TIMING.AMPLITUDE_RAMP_DOWN);
                 gain.gain.linearRampToValueAtTime(0, currentTime + d);
 
                 osc.connect(gain);
@@ -580,13 +637,27 @@ export class MorseTrainer {
     }
 
     // --- Core Features ---
+    /**
+     * Toggle Morse code playback (play if stopped, stop if playing)
+     * @public
+     */
     togglePlay() { this.state.isPlaying ? this.stopPlayback() : this.playMorse(this.state.currentChallenge); }
 
+    /**
+     * Get set of currently unlocked characters based on level and manual selections
+     * @returns {Set<string>} Set of available characters
+     * @private
+     */
     getUnlockedSet() {
         const levelChars = KOCH_SEQUENCE.slice(0, this.state.settings.lessonLevel);
         return new Set([...levelChars, ...this.state.settings.manualChars]);
     }
 
+    /**
+     * Filter training content pools to only include unlocked characters
+     * @returns {Object} Object with filtered words, abbreviations, Q-codes, and phrases
+     * @private
+     */
     getFilteredPool() {
         const unlocked = this.getUnlockedSet();
         const f = (list) => list.filter(item => {
@@ -596,16 +667,22 @@ export class MorseTrainer {
         return { words: f(DICTIONARY), abbrs: f(COMMON_ABBR), qcodes: f(Q_CODES), phrases: f(PHRASES) };
     }
 
+    /**
+     * Generate next training challenge (either real word or synthetic)
+     * Clears input field and optionally plays the challenge
+     * @param {boolean} playNow - Whether to automatically play the challenge (default: true)
+     * @public
+     */
     generateNextChallenge(playNow = true) {
         this.stopPlayback();
-        this.dom.displays.aiTipContainer.classList.add('hidden');
+        this.dom.displays.aiTipContainer.classList.add(CSS_CLASSES.HIDDEN);
         
         const unlockedSet = this.getUnlockedSet();
         const unlockedArray = Array.from(unlockedSet);
         const pool = this.getFilteredPool();
         
         const hasContent = (pool.words.length + pool.abbrs.length + pool.qcodes.length + pool.phrases.length) > 0;
-        const useContent = hasContent && Math.random() < 0.7;
+        const useContent = hasContent && Math.random() < CONTENT_GENERATION.REAL_CONTENT_PROBABILITY;
 
         let next = '', meaning = '';
 
@@ -625,10 +702,10 @@ export class MorseTrainer {
         } else {
             // Synthetic
             const groups = [];
-            const numGroups = Math.floor(Math.random() * 2) + 2;
+            const numGroups = Math.floor(Math.random() * (CONTENT_GENERATION.SYNTHETIC_GROUPS.max - CONTENT_GENERATION.SYNTHETIC_GROUPS.min + 1)) + CONTENT_GENERATION.SYNTHETIC_GROUPS.min;
             for(let g=0; g<numGroups; g++) {
                 let s = '';
-                const len = Math.floor(Math.random() * 4) + 1;
+                const len = Math.floor(Math.random() * (CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH.max - CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH.min + 1)) + CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH.min;
                 for(let k=0; k<len; k++) {
                     // Simple random weighting could be added here
                     s += unlockedArray[Math.floor(Math.random() * unlockedArray.length)];
@@ -648,6 +725,11 @@ export class MorseTrainer {
         if (playNow) setTimeout(() => this.playMorse(next), 100);
     }
 
+    /**
+     * Check user's answer against current challenge
+     * Updates stats and auto-advances level if enabled
+     * @public
+     */
     checkAnswer() {
         if (!this.state.currentChallenge || this.state.isPlaying || !this.state.hasPlayedCurrent) return;
         
@@ -664,38 +746,48 @@ export class MorseTrainer {
         });
         
         this.state.stats.history.unshift({ challenge: correct, input: guess, correct: isCorrect, timestamp: Date.now() });
-        this.state.stats.history = this.state.stats.history.slice(0, 100);
+        this.state.stats.history = this.state.stats.history.slice(0, CONTENT_GENERATION.HISTORY_LIMIT);
         this.saveStats();
 
         const fb = this.dom.displays.feedback;
-        fb.classList.remove('hidden', 'success', 'error'); // CSS classes instead of utility classes for modularity
+        fb.classList.remove('hidden', CSS_CLASSES.SUCCESS, CSS_CLASSES.ERROR); // CSS classes instead of utility classes for modularity
         
         if (isCorrect) {
-            fb.classList.add('success');
-            fb.textContent = `Correct!${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
+            fb.classList.add(CSS_CLASSES.SUCCESS);
+            fb.textContent = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
             if (this.state.activeTab === 'train') {
-                const delay = this.state.settings.autoPlay ? 1200 : 0;
+                const delay = this.state.settings.autoPlay ? PLAYBACK_DELAYS.AUTO_PLAY_NEXT : 0;
                 if (this.state.settings.autoPlay) setTimeout(() => this.generateNextChallenge(true), delay);
                 else this.generateNextChallenge(false); // Prep next but wait
             }
             this.checkAutoLevel();
         } else {
-            fb.classList.add('error');
-            fb.textContent = `You: ${guess || 'EMPTY'} | Answer: ${correct}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
+            fb.classList.add(CSS_CLASSES.ERROR);
+            fb.textContent = `You: ${guess || UI_FEEDBACK.EMPTY_INPUT} | Answer: ${correct}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
         }
     }
 
+    /**
+     * Check if accuracy threshold met and adjust lesson level
+     * @private
+     */
     checkAutoLevel() {
         if (!this.state.settings.autoLevel) return;
         const h = this.state.stats.history;
-        if (h.length < 15) return;
-        const rec = h.slice(0, 20);
+        if (h.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) return;
+        const rec = h.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
         const acc = (rec.filter(x => x.correct).length / rec.length) * 100;
 
-        if (acc >= 90 && this.state.settings.lessonLevel < KOCH_SEQUENCE.length) this.changeLevel(1);
-        else if (acc < 60 && this.state.settings.lessonLevel > 2) this.changeLevel(-1);
+        if (acc >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY && this.state.settings.lessonLevel < KOCH_SEQUENCE.length) this.changeLevel(1);
+        else if (acc < AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY && this.state.settings.lessonLevel > LEVEL_LIMITS.MIN) this.changeLevel(-1);
     }
 
+    /**
+     * Toggle manual character availability for current level
+     * Characters below current level cannot be manually locked
+     * @param {string} char - Character to toggle
+     * @private
+     */
     toggleChar(char) {
         const lvlIdx = this.state.settings.lessonLevel;
         const charIdx = KOCH_SEQUENCE.indexOf(char);
@@ -708,6 +800,11 @@ export class MorseTrainer {
         this.renderKochGrid();
     }
 
+    /**
+     * Change lesson level by delta, respecting bounds and manual overrides
+     * @param {number} delta - Change amount (-1 to decrease, +1 to increase)
+     * @private
+     */
     changeLevel(delta) {
         let newLevel = this.state.settings.lessonLevel + delta;
         if (delta > 0) {
@@ -716,7 +813,7 @@ export class MorseTrainer {
                 newLevel++;
             }
         }
-        newLevel = Math.max(2, Math.min(KOCH_SEQUENCE.length, newLevel));
+        newLevel = Math.max(LEVEL_LIMITS.MIN, Math.min(KOCH_SEQUENCE.length, newLevel));
         if (newLevel !== this.state.settings.lessonLevel) {
             this.state.settings.lessonLevel = newLevel;
             this.saveSettings();
@@ -725,12 +822,17 @@ export class MorseTrainer {
     }
 
     // --- AI / Offline Simulation ---
+    /**
+     * Generate AI-powered broadcast: Creates realistic sentences from unlocked characters
+     * Falls back to offline simulation if AI unavailable
+     * @public
+     */
     async generateAIBroadcast() {
         this.stopPlayback();
         const fb = this.dom.displays.feedback;
-        fb.classList.remove('hidden', 'error', 'success');
-        fb.classList.add('info');
-        fb.textContent = "Intercepting signal...";
+        fb.classList.remove(CSS_CLASSES.HIDDEN, CSS_CLASSES.ERROR, CSS_CLASSES.SUCCESS);
+        fb.classList.add(CSS_CLASSES.INFO);
+        fb.textContent = UI_FEEDBACK.INTERCEPTING;
 
         if (!this.state.settings.apiKey && !this.state.hasBrowserAI) {
             // Offline Simulation
@@ -745,16 +847,16 @@ export class MorseTrainer {
                 
                 if (validParts.length > 0) {
                     this.state.currentChallenge = validParts.join(' ');
-                    this.state.currentMeaning = "Simulated Broadcast";
+                    this.state.currentMeaning = UI_FEEDBACK.SIMULATED_BROADCAST;
                 } else {
                     this.generateNextChallenge(false);
-                    this.state.currentMeaning = "Weak Signal (Synthetic)";
+                    this.state.currentMeaning = UI_FEEDBACK.WEAK_SIGNAL;
                 }
                 
                 this.dom.inputs.user.value = '';
-                fb.classList.add('hidden');
+                fb.classList.add(CSS_CLASSES.HIDDEN);
                 this.playMorse(this.state.currentChallenge);
-            }, 800);
+            }, PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
             return;
         }
 
@@ -767,7 +869,7 @@ export class MorseTrainer {
                 } else {
                     session = await window.ai.languageModel.create();
                 }
-                const prompt = `Generate a short sentence (5-10 words). Constraints: Use ONLY these characters: [${Array.from(this.getUnlockedSet()).join(', ')}]. Output UPPERCASE text only, no punctuation.`;
+                const prompt = AI_PROMPTS.BROADCAST(Array.from(this.getUnlockedSet()).join(', '));
                 const result = await session.prompt(prompt);
                 session.destroy(); // Clean up session
                 
@@ -778,9 +880,9 @@ export class MorseTrainer {
                 
                 if (validText && text.trim()) {
                     this.state.currentChallenge = text.trim();
-                    this.state.currentMeaning = "AI Broadcast";
+                    this.state.currentMeaning = UI_FEEDBACK.AI_BROADCAST;
                     this.dom.inputs.user.value = '';
-                    fb.classList.add('hidden');
+                    fb.classList.add(CSS_CLASSES.HIDDEN);
                     this.playMorse(this.state.currentChallenge);
                 } else {
                     // Fallback to offline if AI response isn't valid
@@ -789,44 +891,49 @@ export class MorseTrainer {
             } catch (e) {
                 console.log('Browser AI generation failed:', e.message);
                 // Fallback to offline simulation
-                fb.textContent = "AI failed, using fallback...";
-                setTimeout(() => this.generateAIBroadcast(), 100);
+                fb.textContent = UI_FEEDBACK.AI_FAILED;
+                setTimeout(() => this.generateAIBroadcast(), PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
                 this.state.hasBrowserAI = false;
             }
         }
     }
     
+    /**
+     * Generate AI-powered smart drill: Targets weak characters from accuracy history
+     * Falls back to offline simulation if AI unavailable
+     * @public
+     */
     async generateAICoach() {
         // Similar fallback logic as broadcast
         this.stopPlayback();
         const fb = this.dom.displays.feedback;
-        fb.classList.remove('hidden');
-        fb.textContent = "Consulting Coach...";
+        fb.classList.remove(CSS_CLASSES.HIDDEN);
+        fb.textContent = UI_FEEDBACK.CONSULTING;
         
         if (!this.state.settings.apiKey && !this.state.hasBrowserAI) {
             setTimeout(() => {
-                const weak = Object.entries(this.state.stats.accuracy).filter(([_, d]) => d.total>2 && d.correct/d.total<0.7).map(x=>x[0]);
+                const weak = Object.entries(this.state.stats.accuracy).filter(([_, d]) => d.total > CONTENT_GENERATION.COACH_WEAK_ATTEMPTS_THRESHOLD && d.correct/d.total < CONTENT_GENERATION.COACH_WEAK_ACCURACY_THRESHOLD).map(x=>x[0]);
                 const pool = weak.length ? weak : Array.from(this.getUnlockedSet());
                 const groups = [];
-                for(let i=0; i<3; i++) {
+                for(let i=0; i<CONTENT_GENERATION.COACH_DRILL_GROUPS; i++) {
                     let s = ''; 
-                    for(let k=0; k<4; k++) s+= pool[Math.floor(Math.random()*pool.length)];
+                    for(let k=0; k<CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH; k++) s+= pool[Math.floor(Math.random()*pool.length)];
                     groups.push(s);
                 }
                 this.state.currentChallenge = groups.join(' ');
-                this.state.currentMeaning = "Smart Coach (Offline)";
-                this.dom.displays.aiTipContainer.classList.remove('hidden');
-                this.dom.displays.aiTipText.textContent = weak.length ? "Focusing on weak chars." : "Good accuracy! Focusing on rhythm.";
-                fb.classList.add('hidden');
+                this.state.currentMeaning = UI_FEEDBACK.OFFLINE_COACH;
+                this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
+                this.dom.displays.aiTipText.textContent = weak.length ? UI_FEEDBACK.WEAK_CHARS_MESSAGE : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
+                fb.classList.add(CSS_CLASSES.HIDDEN);
                 this.playMorse(this.state.currentChallenge);
-            }, 800);
+            }, PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
             return;
         }
 
         // Browser AI Logic
         if (this.state.hasBrowserAI) {
             try {
-                const weak = Object.entries(this.state.stats.accuracy).filter(([_, d]) => d.total>2 && d.correct/d.total<0.7).map(x=>x[0]);
+                const weak = Object.entries(this.state.stats.accuracy).filter(([_, d]) => d.total > CONTENT_GENERATION.COACH_WEAK_ATTEMPTS_THRESHOLD && d.correct/d.total < CONTENT_GENERATION.COACH_WEAK_ACCURACY_THRESHOLD).map(x=>x[0]);
                 let session;
                 if (this.state.aiAPI === 'LanguageModel') {
                     session = await window.LanguageModel.create({ language: 'en' });
@@ -834,7 +941,7 @@ export class MorseTrainer {
                     session = await window.ai.languageModel.create();
                 }
                 const focusChars = weak.length ? weak : Array.from(this.getUnlockedSet());
-                const prompt = `Generate a practice drill of 3-4 groups of random characters (4 chars each). Focus on these characters: [${focusChars.join(', ')}]. Use only characters from: [${Array.from(this.getUnlockedSet()).join(', ')}]. Output format: XXXX XXXX XXXX (uppercase, space-separated groups, no punctuation).`;
+                const prompt = AI_PROMPTS.COACH(focusChars.join(', '), Array.from(this.getUnlockedSet()).join(', '));
                 const result = await session.prompt(prompt);
                 session.destroy(); // Clean up session
                 
@@ -846,9 +953,9 @@ export class MorseTrainer {
                 if (validText && text) {
                     this.state.currentChallenge = text;
                     this.state.currentMeaning = "Smart Coach (AI)";
-                    this.dom.displays.aiTipContainer.classList.remove('hidden');
-                    this.dom.displays.aiTipText.textContent = weak.length ? "Focusing on weak chars." : "Drill generated by AI.";
-                    fb.classList.add('hidden');
+                    this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
+                    this.dom.displays.aiTipText.textContent = weak.length ? UI_FEEDBACK.WEAK_CHARS_MESSAGE : UI_FEEDBACK.DRILL_GENERATED_MESSAGE;
+                    fb.classList.add(CSS_CLASSES.HIDDEN);
                     this.playMorse(this.state.currentChallenge);
                 } else {
                     throw new Error('Invalid AI response');
@@ -856,47 +963,74 @@ export class MorseTrainer {
             } catch (e) {
                 console.log('Browser AI coach failed:', e.message);
                 // Fallback to offline simulation
-                fb.textContent = "AI failed, using fallback...";
-                setTimeout(() => this.generateAICoach(), 100);
+                fb.textContent = UI_FEEDBACK.AI_FAILED;
+                setTimeout(() => this.generateAICoach(), PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
                 this.state.hasBrowserAI = false;
             }
         }
     }
 
     // --- Render Helpers ---
+    /**
+     * Toggle modal visibility
+     * @param {string} name - Modal identifier (settings, reset, aiHelp)
+     * @param {boolean} show - Whether to show or hide the modal
+     * @private
+     */
     toggleModal(name, show) {
         const m = this.dom.modals[name];
-        if (m) m.classList.toggle('hidden', !show);
+        if (m) m.classList.toggle(CSS_CLASSES.HIDDEN, !show);
         if (name === 'settings' && !show) { this.saveSettings(); this.renderKochGrid(); }
     }
 
+    /**
+     * Switch active tab and update view
+     * @param {string} id - Tab identifier (train, stats, guide)
+     * @private
+     */
     switchTab(id) {
         this.state.activeTab = id;
-        Object.values(this.dom.tabs).forEach(b => b.classList.remove('active'));
-        if (this.dom.tabs[id]) this.dom.tabs[id].classList.add('active');
+        Object.values(this.dom.tabs).forEach(b => b.classList.remove(CSS_CLASSES.ACTIVE));
+        if (this.dom.tabs[id]) this.dom.tabs[id].classList.add(CSS_CLASSES.ACTIVE);
         
-        Object.values(this.dom.views).forEach(v => v.classList.add('hidden'));
-        if (id === 'train') this.dom.views.train.classList.remove('hidden');
-        if (id === 'stats') { this.dom.views.stats.classList.remove('hidden'); this.renderStats(); }
-        if (id === 'guide') this.dom.views.guide.classList.remove('hidden');
+        Object.values(this.dom.views).forEach(v => v.classList.add(CSS_CLASSES.HIDDEN));
+        if (id === 'train') this.dom.views.train.classList.remove(CSS_CLASSES.HIDDEN);
+        if (id === 'stats') { this.dom.views.stats.classList.remove(CSS_CLASSES.HIDDEN); this.renderStats(); }
+        if (id === 'guide') this.dom.views.guide.classList.remove(CSS_CLASSES.HIDDEN);
         
         if (id === 'train' && !this.state.currentChallenge) this.generateNextChallenge(false);
     }
 
+    /**
+     * Update individual setting value
+     * @param {string} key - Setting key
+     * @param {any} val - New value
+     * @private
+     */
     updateSetting(key, val) {
         if(key === 'apiKey') this.state.settings.apiKey = val.trim();
         else this.state.settings[key] = key === 'autoPlay' ? val : parseInt(val);
         this.renderSettings();
     }
 
+    /**
+     * Toggle auto-play setting on/off
+     * @param {boolean} val - New auto-play state
+     * @private
+     */
     toggleAutoPlay(val) {
         this.state.settings.autoPlay = val;
         this.saveSettings();
     }
 
+    /**
+     * Reset all progress and return to initial state
+     * @public
+     */
     confirmReset() {
-        this.state.stats = { history: [], accuracy: {} };
-        this.state.settings.lessonLevel = 2;
+        // Create fresh copies to avoid shared reference issues
+        this.state.stats = JSON.parse(JSON.stringify(DEFAULT_STATS));
+        this.state.settings.lessonLevel = LEVEL_LIMITS.MIN;
         this.state.settings.manualChars = [];
         this.saveStats();
         this.saveSettings();
@@ -906,6 +1040,10 @@ export class MorseTrainer {
     }
 
 
+    /**
+     * Update and render all settings displays
+     * @private
+     */
     renderSettings() {
         const s = this.state.settings;
         this.container.querySelector('#display-wpm').textContent = s.wpm + " WPM";
@@ -924,35 +1062,47 @@ export class MorseTrainer {
         this.renderKochGrid();
     }
 
+    /**
+     * Update play button state (play/stop) and status text
+     * @private
+     */
     renderPlayButton() {
         const btn = this.dom.displays.playBtn;
         const txt = this.dom.displays.playStatus;
         if (this.state.isPlaying) {
-            btn.className = 'mt-play-btn stop';
+            btn.className = `mt-play-btn ${CSS_CLASSES.STOP}`;
             btn.innerHTML = ICONS.stop;
             txt.textContent = "Click to Stop";
         } else {
-            btn.className = 'mt-play-btn play';
+            btn.className = `mt-play-btn ${CSS_CLASSES.PLAY}`;
             btn.innerHTML = ICONS.play;
             txt.textContent = "Click to Play (Auto-Focus)";
         }
     }
 
+    /**
+     * Update submit button disabled state based on current challenge state
+     * @private
+     */
     renderSubmitButton() {
         const btn = this.dom.displays.submitBtn;
         const disabled = !this.state.currentChallenge || this.state.isPlaying || !this.state.hasPlayedCurrent;
         btn.disabled = disabled;
     }
 
+    /**
+     * Render Koch progress grid with unlocked/manual indicators
+     * @private
+     */
     renderKochGrid() {
-        const grid = this.container.querySelector('#koch-grid');
-        const badge = this.container.querySelector('#level-badge');
+        const grid = this.domCache.query('#koch-grid');
+        const badge = this.domCache.query('#level-badge');
         if (!grid) return;
 
         const lvlIdx = this.state.settings.lessonLevel;
         const manual = this.state.settings.manualChars;
 
-        grid.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         KOCH_SEQUENCE.forEach((char, idx) => {
             const btn = document.createElement('button');
             btn.className = 'mt-char-box mt-koch-btn';
@@ -962,32 +1112,31 @@ export class MorseTrainer {
             const isInLevel = idx < lvlIdx;
             const isManual = manual.includes(char);
 
-            if (isInLevel && !isManual) btn.classList.add('unlocked');
-            else if (isManual) btn.classList.add('manual');
+            if (isInLevel && !isManual) btn.classList.add(CSS_CLASSES.UNLOCKED);
+            else if (isManual) btn.classList.add(CSS_CLASSES.MANUAL);
 
-            grid.appendChild(btn);
+            fragment.appendChild(btn);
         });
 
+        grid.innerHTML = '';
+        grid.appendChild(fragment);
+        
         if (badge) badge.textContent = `Level ${lvlIdx}`;
     }
 
+    /**
+     * Render guide tab with course roadmap and abbreviation reference
+     * @private
+     */
     renderGuide() {
-        const roadmapList = this.container.querySelector('#roadmap-list');
-        const abbrGrid = this.container.querySelector('#abbr-grid');
+        const roadmapList = this.domCache.query('#roadmap-list');
+        const abbrGrid = this.domCache.query('#abbr-grid');
 
         if (roadmapList) {
-            const chunks = [
-                { end: 5, description: "Foundational" },
-                { end: 12, description: "Vowels & High Freq" },
-                { end: 18, description: "Punctuation & Numbers" },
-                { end: 26, description: "Q-Codes" },
-                { end: 40, description: "Advanced" }
-            ];
-
+            const fragment = document.createDocumentFragment();
             let startIdx = 0;
-            roadmapList.innerHTML = '';
             
-            chunks.forEach(chunk => {
+            KOCH_LEVELS.forEach(chunk => {
                 const endIdx = Math.min(chunk.end, KOCH_SEQUENCE.length);
                 const chars = KOCH_SEQUENCE.slice(startIdx, endIdx).join(' ');
                 const levelLabel = `Level ${startIdx + 1}-${endIdx}`;
@@ -1002,27 +1151,36 @@ export class MorseTrainer {
                             <div class="mt-roadmap-desc">${chunk.description}</div>
                         </div>
                     `;
-                    roadmapList.appendChild(item);
+                    fragment.appendChild(item);
                 }
                 startIdx = endIdx;
             });
+            
+            roadmapList.innerHTML = '';
+            roadmapList.appendChild(fragment);
         }
 
         if (abbrGrid) {
-            abbrGrid.innerHTML = '';
+            const fragment = document.createDocumentFragment();
             COMMON_ABBR.forEach(abbr => {
                 const card = document.createElement('div');
                 card.className = 'mt-abbr-card';
                 card.innerHTML = `<div class="mt-abbr-code">${abbr.code}</div> <div class="mt-abbr-meaning">${abbr.meaning}</div>`;
-                abbrGrid.appendChild(card);
+                fragment.appendChild(card);
             });
+            abbrGrid.innerHTML = '';
+            abbrGrid.appendChild(fragment);
         }
     }
 
+    /**
+     * Update stats view with accuracy percentage and recent history
+     * @private
+     */
     renderStats() {
-        const accuracyDiv = this.container.querySelector('#stat-accuracy');
-        const drillsDiv = this.container.querySelector('#stat-drills');
-        const historyList = this.container.querySelector('#history-list');
+        const accuracyDiv = this.domCache.query('#stat-accuracy');
+        const drillsDiv = this.domCache.query('#stat-drills');
+        const historyList = this.domCache.query('#history-list');
 
         if (accuracyDiv) {
             const acc = this.state.stats.accuracy;
@@ -1037,15 +1195,17 @@ export class MorseTrainer {
         }
 
         if (historyList) {
-            historyList.innerHTML = '';
+            const fragment = document.createDocumentFragment();
             this.state.stats.history.slice(0, 20).forEach((entry, idx) => {
                 const item = document.createElement('div');
-                item.className = 'mt-history-item ' + (entry.correct ? 'success' : 'error');
+                item.className = `mt-history-item ${entry.correct ? CSS_CLASSES.SUCCESS : CSS_CLASSES.ERROR}`;
                 const timeago = Math.round((Date.now() - entry.timestamp) / 1000);
                 const timeStr = timeago < 60 ? timeago + 's' : (Math.round(timeago / 60) + 'm');
                 item.innerHTML = `<span class="mt-history-result">${entry.correct ? '✓' : '✗'}</span> <span class="mt-history-text">${entry.challenge}</span> <span class="mt-history-time">${timeStr} ago</span>`;
-                historyList.appendChild(item);
+                fragment.appendChild(item);
             });
+            historyList.innerHTML = '';
+            historyList.appendChild(fragment);
         }
     }
 }
