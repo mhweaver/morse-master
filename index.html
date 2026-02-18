@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morse Master - Standalone Demo</title>
+    
+    <!-- 1. Include the CSS -->
+    <link rel="stylesheet" href="morse-trainer.css">
+    
+    <!-- Optional: Overrides for embedding (Theming) -->
+    <style>
+        /* Example: Setting the background of the host page */
+        body { 
+            margin: 0; 
+            background: #f0fdf4; /* Light green background to show embedding */
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        /* Container for the app */
+        #app-container {
+            max-width: 100%;
+            margin: 0 auto;
+            /* The app handles its own internal layout logic */
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 2. The Container where the app will mount -->
+    <div id="app-container"></div>
+
+    <!-- 3. The Logic -->
+    <script type="module">
+        import { MorseTrainer } from './morse-trainer.js';
+        
+        // Find the container and initialize the trainer
+        const container = document.getElementById('app-container');
+        const trainer = new MorseTrainer(container);
+    </script>
+</body>
+</html>
