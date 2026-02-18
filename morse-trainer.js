@@ -86,6 +86,7 @@ export class MorseTrainer {
             activeTab: 'train',
             aiLoading: false,
             hasBrowserAI: false,
+            aiAPI: null,
             hasPlayedCurrent: false
         };
 
@@ -348,11 +349,42 @@ export class MorseTrainer {
         if (toggle) toggle.checked = this.state.settings.autoPlay;
 
         // Browser AI Check
-        if (window.ai && window.ai.languageModel) {
-            try {
-                const caps = await window.ai.languageModel.capabilities();
-                if (caps.available !== 'no') this.state.hasBrowserAI = true;
-            } catch (e) { console.log('Browser AI check failed', e); }
+        try {
+            // Check for window.ai.languageModel (older API)
+            if (window.ai && window.ai.languageModel) {
+                const capabilities = await window.ai.languageModel.capabilities();
+                if (capabilities && capabilities.available !== 'no') {
+                    this.state.hasBrowserAI = true;
+                    this.state.aiAPI = 'window.ai';
+                }
+            }
+            // Check for window.LanguageModel (newer API)
+            else if (window.LanguageModel) {
+                let canUseAI = false;
+                
+                // Try capabilities if available
+                if (window.LanguageModel.capabilities) {
+                    const capabilities = await window.LanguageModel.capabilities();
+                    canUseAI = capabilities && capabilities.available !== 'no';
+                } else {
+                    // If no capabilities method, try to create directly
+                    try {
+                        const testSession = await window.LanguageModel.create({ language: 'en' });
+                        if (testSession && testSession.prompt) {
+                            canUseAI = true;
+                        }
+                    } catch (e) {
+                        console.log('Chrome AI check failed:', e.message);
+                    }
+                }
+                
+                if (canUseAI) {
+                    this.state.hasBrowserAI = true;
+                    this.state.aiAPI = 'LanguageModel';
+                }
+            }
+        } catch (e) { 
+            console.log('Browser AI initialization error:', e); 
         }
 
         this.bindEvents();
@@ -726,10 +758,42 @@ export class MorseTrainer {
             return;
         }
 
-        // Online/AI Logic ... (Simplified for brevity, same as original logic)
-        const prompt = `Generate a short sentence (5-10 words). Constraints: Use ONLY [${Array.from(this.getUnlockedSet()).join(', ')}]. Output UPPERCASE text only.`;
-        // ... Call callGemini(prompt) ...
-        // For this refactor, I'll assume the same structure as before or reuse the offline mode if fetch fails.
+        // Browser AI Logic
+        if (this.state.hasBrowserAI) {
+            try {
+                let session;
+                if (this.state.aiAPI === 'LanguageModel') {
+                    session = await window.LanguageModel.create({ language: 'en' });
+                } else {
+                    session = await window.ai.languageModel.create();
+                }
+                const prompt = `Generate a short sentence (5-10 words). Constraints: Use ONLY these characters: [${Array.from(this.getUnlockedSet()).join(', ')}]. Output UPPERCASE text only, no punctuation.`;
+                const result = await session.prompt(prompt);
+                session.destroy(); // Clean up session
+                
+                // Parse and validate the result
+                const text = result.toUpperCase().replace(/[^A-Z0-9 ]/g, '');
+                const unlockedSet = this.getUnlockedSet();
+                const validText = text.split('').every(c => c === ' ' || unlockedSet.has(c));
+                
+                if (validText && text.trim()) {
+                    this.state.currentChallenge = text.trim();
+                    this.state.currentMeaning = "AI Broadcast";
+                    this.dom.inputs.user.value = '';
+                    fb.classList.add('hidden');
+                    this.playMorse(this.state.currentChallenge);
+                } else {
+                    // Fallback to offline if AI response isn't valid
+                    throw new Error('Invalid AI response');
+                }
+            } catch (e) {
+                console.log('Browser AI generation failed:', e.message);
+                // Fallback to offline simulation
+                fb.textContent = "AI failed, using fallback...";
+                setTimeout(() => this.generateAIBroadcast(), 100);
+                this.state.hasBrowserAI = false;
+            }
+        }
     }
     
     async generateAICoach() {
@@ -756,6 +820,46 @@ export class MorseTrainer {
                 fb.classList.add('hidden');
                 this.playMorse(this.state.currentChallenge);
             }, 800);
+            return;
+        }
+
+        // Browser AI Logic
+        if (this.state.hasBrowserAI) {
+            try {
+                const weak = Object.entries(this.state.stats.accuracy).filter(([_, d]) => d.total>2 && d.correct/d.total<0.7).map(x=>x[0]);
+                let session;
+                if (this.state.aiAPI === 'LanguageModel') {
+                    session = await window.LanguageModel.create({ language: 'en' });
+                } else {
+                    session = await window.ai.languageModel.create();
+                }
+                const focusChars = weak.length ? weak : Array.from(this.getUnlockedSet());
+                const prompt = `Generate a practice drill of 3-4 groups of random characters (4 chars each). Focus on these characters: [${focusChars.join(', ')}]. Use only characters from: [${Array.from(this.getUnlockedSet()).join(', ')}]. Output format: XXXX XXXX XXXX (uppercase, space-separated groups, no punctuation).`;
+                const result = await session.prompt(prompt);
+                session.destroy(); // Clean up session
+                
+                // Parse and validate the result
+                const text = result.toUpperCase().replace(/[^A-Z0-9 ]/g, '').trim();
+                const unlockedSet = this.getUnlockedSet();
+                const validText = text.split('').every(c => c === ' ' || unlockedSet.has(c));
+                
+                if (validText && text) {
+                    this.state.currentChallenge = text;
+                    this.state.currentMeaning = "Smart Coach (AI)";
+                    this.dom.displays.aiTipContainer.classList.remove('hidden');
+                    this.dom.displays.aiTipText.textContent = weak.length ? "Focusing on weak chars." : "Drill generated by AI.";
+                    fb.classList.add('hidden');
+                    this.playMorse(this.state.currentChallenge);
+                } else {
+                    throw new Error('Invalid AI response');
+                }
+            } catch (e) {
+                console.log('Browser AI coach failed:', e.message);
+                // Fallback to offline simulation
+                fb.textContent = "AI failed, using fallback...";
+                setTimeout(() => this.generateAICoach(), 100);
+                this.state.hasBrowserAI = false;
+            }
         }
     }
 
