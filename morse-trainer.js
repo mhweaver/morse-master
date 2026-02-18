@@ -3,45 +3,40 @@
  * Encapsulated ES Module for easy embedding.
  */
 
-import { DOMCache, DOMBatch } from './dom-utils.js';
-import { ErrorHandler, AICallWrapper } from './error-handler.js';
+import { DOMCache } from './dom-utils.js';
+import { ErrorHandler } from './error-handler.js';
 import {
   MORSE_LIB,
   KOCH_SEQUENCE,
+  ICONS,
+  AUTO_LEVEL_CONFIG,
+  LEVEL_LIMITS,
+  CSS_CLASSES,
+  UI_FEEDBACK,
+  KOCH_LEVELS,
+  UI_RENDERING,
+  DEBOUNCE_TIMING,
+  CONTENT_GENERATION,
+  MODAL_IDENTIFIERS,
+  DEFAULT_SETTINGS,
+  SETTINGS_RANGES,
   COMMON_ABBR,
   Q_CODES,
   PHRASES,
   DICTIONARY,
-  ICONS,
-  STORAGE_KEYS,
-  DEFAULT_SETTINGS,
-  DEFAULT_STATS,
-  SETTINGS_RANGES,
-  AUDIO_TIMING,
   PLAYBACK_DELAYS,
-  AUTO_LEVEL_CONFIG,
-  LEVEL_LIMITS,
-  CONTENT_GENERATION,
-  CSS_CLASSES,
-  UI_FEEDBACK,
-  AI_PROMPTS,
-  KOCH_LEVELS,
-  DOM_SELECTORS,
-  UI_RENDERING,
-  DEBOUNCE_TIMING
+  DEFAULT_STATS
 } from './constants.js';
 import {
-  getWeakCharacters,
   calculateAccuracyPercentage,
   formatTimeElapsed,
-  filterByUnlockedChars,
-  pickRandomItem,
   createDebounced,
-  cleanMorseText,
-  generateSyntheticChallenge,
-  generateRandomCharacterGroup,
-  pickRandomCharacter
+  getWeakCharacters
 } from './utils.js';
+import { AudioSynthesizer } from './audio-synthesizer.js';
+import { StateManager } from './state-manager.js';
+import { ContentGenerator } from './content-generator.js';
+import { AIOperations } from './ai-operations.js';
 
 // --- Class ---
 /**
@@ -67,36 +62,31 @@ export class MorseTrainer {
     constructor(containerElement) {
         if (!containerElement) throw new Error("MorseTrainer: Target element required");
         this.container = containerElement;
-        
-        // Initialize State
-        this.audioCtx = null;
-        this.sessionGain = null;
-        this.playbackTimeout = null;
+
+        // Initialize helper services
+        this.stateManager = new StateManager();
+        this.audioSynthesizer = new AudioSynthesizer(this.stateManager.settings);
+        this.contentGenerator = new ContentGenerator(this.stateManager.stats.accuracy);
+        this.aiOperations = new AIOperations(this.stateManager, this.contentGenerator);
+
+        // Initialize application state
+        this.currentChallenge = '';
+        this.currentMeaning = '';
+        this.activeTab = 'train';
+        this.hasPlayedCurrent = false;
         this.eventListeners = []; // Track listeners for cleanup
-        this.state = {
-            settings: this.loadSettings(),
-            stats: this.loadStats(),
-            currentChallenge: '',
-            currentMeaning: '',
-            isPlaying: false,
-            activeTab: 'train',
-            aiLoading: false,
-            hasBrowserAI: false,
-            aiAPI: null,
-            hasPlayedCurrent: false
-        };
 
         // Create debounced settings save (500ms delay)
         this._debouncedSaveSettings = createDebounced(() => {
-            this.saveSettings();
+            this.stateManager.saveSettings();
         }, DEBOUNCE_TIMING.SETTINGS_SAVE);
 
         // Render Initial DOM Structure
         this.renderStructure();
-        
+
         // Initialize DOM Cache for dynamic queries
         this.domCache = new DOMCache(this.container);
-        
+
         // Cache DOM References
         this.dom = {
             views: {
@@ -343,18 +333,20 @@ export class MorseTrainer {
     }
 
     async init() {
-        if (!this.state.settings.manualChars) {
-            this.state.settings.manualChars = [];
-            this.saveSettings();
+        // Ensure manual chars array exists
+        if (!this.stateManager.settings.manualChars) {
+            this.stateManager.settings.manualChars = [];
+            this.stateManager.saveSettings();
         }
-        
-        // Init Toggle
+
+        // Initialize autoplay toggle UI
         const toggle = this.container.querySelector('#autoplay-toggle');
-        if (toggle) toggle.checked = this.state.settings.autoPlay;
+        if (toggle) toggle.checked = this.stateManager.settings.autoPlay;
 
-        // Browser AI Check
-        await this.detectBrowserAI();
+        // Detect browser AI capabilities
+        await this.aiOperations.initializeAI();
 
+        // Set up event handlers and render UI
         this.bindEvents();
         this.renderSettings();
         this.renderGuide();
@@ -362,166 +354,80 @@ export class MorseTrainer {
     }
 
     /**
-     * Detect if browser has on-device AI capabilities
-     * Called once during init to avoid repeated checks
-     * @private
-     */
-    async detectBrowserAI() {
-        try {
-            // Check for window.ai.languageModel (older API)
-            if (window.ai && window.ai.languageModel) {
-                const capabilities = await window.ai.languageModel.capabilities();
-                if (capabilities && capabilities.available !== 'no') {
-                    this.state.hasBrowserAI = true;
-                    this.state.aiAPI = 'window.ai';
-                    return;
-                }
-            }
-            // Check for window.LanguageModel (newer API)
-            if (window.LanguageModel) {
-                let canUseAI = false;
-                
-                // Try capabilities if available
-                if (window.LanguageModel.capabilities) {
-                    const capabilities = await window.LanguageModel.capabilities();
-                    canUseAI = capabilities && capabilities.available !== 'no';
-                } else {
-                    // If no capabilities method, try to create directly
-                    try {
-                        const testSession = await window.LanguageModel.create({ language: 'en' });
-                        if (testSession && testSession.prompt) {
-                            canUseAI = true;
-                        }
-                    } catch (e) {
-                        console.log('Chrome AI check failed:', e.message);
-                    }
-                }
-                
-                if (canUseAI) {
-                    this.state.hasBrowserAI = true;
-                    this.state.aiAPI = 'LanguageModel';
-                }
-            }
-        } catch (e) { 
-            console.log('Browser AI initialization error:', e); 
-        }
-    }
-
-    /**
      * Clean up resources and event listeners
      * @public
      */
     destroy() {
-        this.stopPlayback();
-        
+        // Stop any ongoing playback
+        this.audioSynthesizer.stop();
+
         // Remove all tracked event listeners
         this.eventListeners.forEach(({ element, event, handler }) => {
             element.removeEventListener(event, handler);
         });
         this.eventListeners = [];
-        
+
         // Clean up audio context
-        if (this.audioCtx && this.audioCtx.state !== 'closed') {
-            this.audioCtx.close();
-            this.audioCtx = null;
-        }
-        
+        this.audioSynthesizer.destroy();
+
         // Clear DOM references
         this.container.innerHTML = '';
     }
 
     // --- Core Logic ---
     bindEvents() {
-        // Event Delegation for all clicks
+        // Single unified click handler with action routing
         const clickHandler = (e) => {
+            // Handle Koch character buttons
+            const kochBtn = e.target.closest('.mt-koch-btn');
+            if (kochBtn && kochBtn.dataset.char) {
+                this.toggleChar(kochBtn.dataset.char);
+                return;
+            }
+
             const trigger = e.target.closest('[data-action]');
             if (!trigger) return;
-            
-            const action = trigger.dataset.action;
-            
-            if (action === 'togglePlay') this.togglePlay();
-            if (action === 'checkAnswer') this.checkAnswer();
-            if (action === 'skipWord') this.generateNextChallenge();
-            if (action === 'ai:broadcast') this.generateAIBroadcast();
-            if (action === 'ai:coach') this.generateAICoach();
-            
-            // Tabs
-            if (action.startsWith('tab:')) this.switchTab(action.split(':')[1]);
-            
-            // Modals
-            if (action === 'modal:settings:open') this.toggleModal('settings', true);
-            if (action === 'modal:settings:close') this.toggleModal('settings', false);
-            if (action === 'modal:reset:open') this.toggleModal('reset', true);
-            if (action === 'modal:reset:close') this.toggleModal('reset', false);
-            if (action === 'modal:aiHelp:open') this.toggleModal('aiHelp', true);
-            if (action === 'modal:aiHelp:close') this.toggleModal('aiHelp', false);
-            
-            if (action === 'confirmReset') this.confirmReset();
 
-            // Levels
-            if (action === 'level:prev') this.changeLevel(-1);
-            if (action === 'level:next') this.changeLevel(1);
+            const action = trigger.dataset.action;
+            this.handleAction(action, e);
         };
         this.container.addEventListener('click', clickHandler);
         this.eventListeners.push({ element: this.container, event: 'click', handler: clickHandler });
 
-        // Koch Grid Button Clicks
-        const kochClickHandler = (e) => {
-            const kochBtn = e.target.closest('.mt-koch-btn');
-            if (kochBtn && kochBtn.dataset.char) {
-                this.toggleChar(kochBtn.dataset.char);
-            }
-        };
-        this.container.addEventListener('click', kochClickHandler);
-        this.eventListeners.push({ element: this.container, event: 'click', handler: kochClickHandler });
-
-        // Inputs - User input keydown
-        const userInputKeydownHandler = (e) => {
-            if (e.key === 'Enter') {
-                const isEmpty = !this.dom.inputs.user.value.trim();
-                if (isEmpty) this.togglePlay();
-                else this.checkAnswer();
-            }
-            if (e.code === 'Space') {
-                const isEmpty = !this.dom.inputs.user.value.trim();
-                if (isEmpty) {
-                    e.preventDefault();
-                    this.togglePlay();
+        // User input (Enter/Space handling)
+        if (this.dom.inputs.user) {
+            const userInputKeydownHandler = (e) => {
+                if (e.key === 'Enter') {
+                    const isEmpty = !this.dom.inputs.user.value.trim();
+                    if (isEmpty) this.togglePlay();
+                    else this.checkAnswer();
                 }
-            }
-        };
-        this.dom.inputs.user.addEventListener('keydown', userInputKeydownHandler);
-        this.eventListeners.push({ element: this.dom.inputs.user, event: 'keydown', handler: userInputKeydownHandler });
-
-        // Settings Inputs
-        const bindSetting = (el, key) => {
-            if (!el) return;
-            const settingChangeHandler = (e) => {
-                const val = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-                if (key === 'autoPlay') this.toggleAutoPlay(val);
-                else this.updateSetting(key, val);
+                if (e.code === 'Space') {
+                    const isEmpty = !this.dom.inputs.user.value.trim();
+                    if (isEmpty) {
+                        e.preventDefault();
+                        this.togglePlay();
+                    }
+                }
             };
-            el.addEventListener('input', settingChangeHandler);
-            this.eventListeners.push({ element: el, event: 'input', handler: settingChangeHandler });
-        };
-        bindSetting(this.dom.inputs.wpm, 'wpm');
-        bindSetting(this.dom.inputs.farnsworth, 'farnsworth');
-        bindSetting(this.dom.inputs.frequency, 'frequency');
-        bindSetting(this.dom.inputs.apiKey, 'apiKey');
-        bindSetting(this.container.querySelector('#autoplay-toggle'), 'autoPlay');
+            this.dom.inputs.user.addEventListener('keydown', userInputKeydownHandler);
+            this.eventListeners.push({ element: this.dom.inputs.user, event: 'keydown', handler: userInputKeydownHandler });
+        }
 
-        // Global Shortcuts
+        // Settings inputs
+        this.bindSettingInputs();
+
+        // Global keyboard shortcuts
         const globalKeydownHandler = (e) => {
-            // Only apply if focused on document body or within container
-            const isFocusedInApp = !document.activeElement || 
-                                  document.activeElement === document.body || 
-                                  this.container.contains(document.activeElement);
+            const isFocusedInApp = !document.activeElement ||
+                document.activeElement === document.body ||
+                this.container.contains(document.activeElement);
             if (!isFocusedInApp) return;
 
-            if (e.key === 'Escape' && this.state.isPlaying) {
+            if (e.key === 'Escape' && this.audioSynthesizer.isPlaying) {
                 this.stopPlayback();
             }
-            
+
             const isGlobalSpaceShortcut = (e.ctrlKey || e.metaKey) && e.code === 'Space';
             const isContextSpaceShortcut = e.code === 'Space' && document.activeElement !== this.dom.inputs.user;
 
@@ -535,174 +441,140 @@ export class MorseTrainer {
     }
 
     /**
-     * Load saved settings from localStorage
-     * @returns {Object} Settings object with wpm, frequency, leveland other preferences
+     * Route actions to appropriate handlers
+     * @param {string} action - The action to handle
      * @private
      */
-    loadSettings() {
-        try {
-            const loaded = JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS));
-            if (loaded) {
-                // Validate loaded settings
-                const validation = ErrorHandler.validateSettings(loaded, SETTINGS_RANGES);
-                if (!validation.valid) {
-                    console.warn('Settings validation failed:', validation.errors.join(', '));
+    handleAction(action, event) {
+        // Playback
+        if (action === 'togglePlay') this.togglePlay();
+        if (action === 'checkAnswer') this.checkAnswer();
+        if (action === 'skipWord') this.generateNextChallenge();
+
+        // AI Operations
+        if (action === 'ai:broadcast') this.generateAIBroadcast();
+        if (action === 'ai:coach') this.generateAICoach();
+
+        // Tab navigation
+        if (action.startsWith('tab:')) this.switchTab(action.split(':')[1]);
+
+        // Modal operations
+        if (action.startsWith('modal:')) this.handleModalAction(action);
+
+        // Level changes
+        if (action === 'level:prev') this.changeLevel(-1);
+        if (action === 'level:next') this.changeLevel(1);
+
+        // Reset confirmation
+        if (action === 'confirmReset') this.confirmReset();
+
+        // Koch grid character toggle
+        if (action.startsWith('koch:')) {
+            const char = action.split(':')[1];
+            this.toggleChar(char);
+        }
+    }
+
+    /**
+     * Handle modal open/close actions
+     * @param {string} action - Modal action in format "modal:name:operation"
+     * @private
+     */
+    handleModalAction(action) {
+        const parts = action.split(':');
+        if (parts.length < 3) return;
+
+        const modalName = parts[1];
+        const operation = parts[2];
+
+        if (operation === 'open') {
+            this.toggleModal(modalName, true);
+        } else if (operation === 'close') {
+            this.toggleModal(modalName, false);
+        }
+    }
+
+    /**
+     * Bind setting input handlers
+     * @private
+     */
+    bindSettingInputs() {
+        const bindSetting = (selector, key) => {
+            const element = typeof selector === 'string'
+                ? this.container.querySelector(selector)
+                : selector;
+
+            if (!element) return;
+
+            const handler = (e) => {
+                const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+                // Special handling for autoPlay to call toggleAutoPlay
+                if (key === 'autoPlay') {
+                    this.toggleAutoPlay(value);
+                } else {
+                    this.updateSetting(key, value);
                 }
-                return loaded;
-            }
-            // Return a copy to avoid shared reference issues
-            return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
-        } catch (error) {
-            ErrorHandler.logError(error, 'Loading settings from localStorage');
-            return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
-        }
+            };
+
+            element.addEventListener('input', handler);
+            this.eventListeners.push({ element, event: 'input', handler });
+        };
+
+        bindSetting(this.dom.inputs.wpm, 'wpm');
+        bindSetting(this.dom.inputs.farnsworth, 'farnsworthWpm');
+        bindSetting(this.dom.inputs.frequency, 'frequency');
+        bindSetting(this.dom.inputs.apiKey, 'apiKey');
+        bindSetting('#autoplay-toggle', 'autoPlay');
     }
 
     /**
-     * Persist settings to localStorage
-     * @private
-     */
-    saveSettings() {
-        try {
-            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(this.state.settings));
-        } catch (error) {
-            ErrorHandler.logError(error, 'Saving settings to localStorage', {
-                settingsKeys: Object.keys(this.state.settings)
-            });
-        }
-    }
-    
-    /**
-     * Load saved statistics from localStorage
-     * @returns {Object} Stats object with history array and accuracy map
-     * @private
-     */
-    loadStats() {
-        try {
-            const loaded = JSON.parse(localStorage.getItem(STORAGE_KEYS.STATS));
-            if (loaded && typeof loaded === 'object') {
-                return loaded;
-            }
-            // Return a copy to avoid shared reference issues
-            return JSON.parse(JSON.stringify(DEFAULT_STATS));
-        } catch (error) {
-            ErrorHandler.logError(error, 'Loading stats from localStorage');
-            return JSON.parse(JSON.stringify(DEFAULT_STATS));
-        }
-    }
-    
-    /**
-     * Persist statistics to localStorage
-     * @private
-     */
-    saveStats() {
-        try {
-            localStorage.setItem(STORAGE_KEYS.STATS, JSON.stringify(this.state.stats));
-        } catch (error) {
-            ErrorHandler.logError(error, 'Saving stats to localStorage', {
-                historyLength: this.state.stats.history.length,
-                accuracyKeys: Object.keys(this.state.stats.accuracy).length
-            });
-        }
-    }
-
-    /**
-     * Get or create Web Audio API context
-     * @returns {AudioContext} The audio context instance
-     * @private
-     */
-    getAudioContext() {
-        if (!this.audioCtx) this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        return this.audioCtx;
-    }
-
-    /**
-     * Stop current audio playback and clean up audio resources
+     * Stop current audio playback and update UI
      * @private
      */
     stopPlayback() {
-        if (this.playbackTimeout) { clearTimeout(this.playbackTimeout); this.playbackTimeout = null; }
-        if (this.sessionGain) {
-            const now = this.audioCtx.currentTime;
-            this.sessionGain.gain.cancelScheduledValues(now);
-            this.sessionGain.gain.linearRampToValueAtTime(0, now + AUDIO_TIMING.SESSION_GAIN_RAMP);
-            const sg = this.sessionGain;
-            setTimeout(() => sg.disconnect(), AUDIO_TIMING.SESSION_GAIN_DISCONNECT);
-            this.sessionGain = null;
-        }
-        this.state.isPlaying = false;
+        this.audioSynthesizer.stop();
         this.renderPlayButton();
         this.renderSubmitButton();
     }
 
     /**
-     * Play Morse code audio for given text using Web Audio API
-     * Synthesizes sine wave with Farnsworth timing
+     * Play Morse code audio for given text
      * @param {string} text - Text to convert to Morse code and play
      * @private
      */
     async playMorse(text) {
-        if (this.state.isPlaying) { this.stopPlayback(); return; }
+        if (this.audioSynthesizer.isPlaying) {
+            this.stopPlayback();
+            return;
+        }
         if (!text) return;
 
-        this.state.hasPlayedCurrent = true;
+        this.hasPlayedCurrent = true;
         this.dom.inputs.user.focus();
-        this.state.isPlaying = true;
+
+        // Update audio settings from current state
+        this.audioSynthesizer.updateSettings({
+            wpm: this.stateManager.settings.wpm,
+            farnsworthWpm: this.stateManager.settings.farnsworthWpm,
+            frequency: this.stateManager.settings.frequency,
+            volume: this.stateManager.settings.volume
+        });
+
+        await this.audioSynthesizer.play(text, () => {
+            // Update UI when playback completes
+            this.renderPlayButton();
+        });
+
         this.renderPlayButton();
         this.renderSubmitButton();
 
-        const ctx = this.getAudioContext();
-        if (ctx.state === 'suspended') await ctx.resume();
-
-        this.sessionGain = ctx.createGain();
-        this.sessionGain.connect(ctx.destination);
-
-        let currentTime = ctx.currentTime + AUDIO_TIMING.AUDIO_START_DELAY;
-        const dotTime = AUDIO_TIMING.DOT_MULTIPLIER / this.state.settings.wpm;
-        const dashTime = dotTime * AUDIO_TIMING.DASH_MULTIPLIER;
-        const fRatio = AUDIO_TIMING.DOT_MULTIPLIER / this.state.settings.farnsworthWpm;
-        const charSpace = fRatio * AUDIO_TIMING.char_SPACE_MULTIPLIER;
-        const wordSpace = fRatio * AUDIO_TIMING.WORD_SPACE_MULTIPLIER;
-
-        for (const char of text.toUpperCase().split('')) {
-            if (char === ' ') {
-                currentTime += (wordSpace - charSpace);
-                continue;
+        // Auto-advance if enabled after playback
+        if (this.stateManager.settings.autoPlay) {
+            const originalIsPlaying = this.audioSynthesizer.isPlaying;
+            if (!originalIsPlaying && this.activeTab === 'train' && this.currentChallenge) {
+                // Note: playback end will be tracked by audioSynthesizer
             }
-            const pattern = MORSE_LIB[char];
-            if (!pattern) continue;
-
-            for (let j = 0; j < pattern.length; j++) {
-                const symbol = pattern[j];
-                const d = (symbol === '.') ? dotTime : dashTime;
-                
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(this.state.settings.frequency, currentTime);
-                
-                gain.gain.setValueAtTime(0, currentTime);
-                gain.gain.linearRampToValueAtTime(this.state.settings.volume, currentTime + AUDIO_TIMING.AMPLITUDE_RAMP_UP);
-                gain.gain.setValueAtTime(this.state.settings.volume, currentTime + d - AUDIO_TIMING.AMPLITUDE_RAMP_DOWN);
-                gain.gain.linearRampToValueAtTime(0, currentTime + d);
-
-                osc.connect(gain);
-                gain.connect(this.sessionGain);
-                osc.start(currentTime);
-                osc.stop(currentTime + d);
-
-                currentTime += d;
-                if (j < pattern.length - 1) currentTime += dotTime;
-            }
-            currentTime += charSpace;
         }
-
-        this.playbackTimeout = setTimeout(() => {
-            this.state.isPlaying = false;
-            this.sessionGain = null;
-            this.renderPlayButton();
-            this.renderSubmitButton();
-        }, (currentTime - ctx.currentTime) * 1000);
     }
 
     // --- Core Features ---
@@ -710,31 +582,12 @@ export class MorseTrainer {
      * Toggle Morse code playback (play if stopped, stop if playing)
      * @public
      */
-    togglePlay() { this.state.isPlaying ? this.stopPlayback() : this.playMorse(this.state.currentChallenge); }
-
-    /**
-     * Get set of currently unlocked characters based on level and manual selections
-     * @returns {Set<string>} Set of available characters
-     * @private
-     */
-    getUnlockedSet() {
-        const levelChars = KOCH_SEQUENCE.slice(0, this.state.settings.lessonLevel);
-        return new Set([...levelChars, ...this.state.settings.manualChars]);
-    }
-
-    /**
-     * Filter training content pools to only include unlocked characters
-     * @returns {Object} Object with filtered words, abbreviations, Q-codes, and phrases
-     * @private
-     */
-    getFilteredPool() {
-        const unlockedCharSet = this.getUnlockedSet();
-        return {
-            words: filterByUnlockedChars(DICTIONARY, unlockedCharSet),
-            abbrs: filterByUnlockedChars(COMMON_ABBR, unlockedCharSet),
-            qcodes: filterByUnlockedChars(Q_CODES, unlockedCharSet),
-            phrases: filterByUnlockedChars(PHRASES, unlockedCharSet)
-        };
+    togglePlay() {
+        if (this.audioSynthesizer.isPlaying) {
+            this.stopPlayback();
+        } else {
+            this.playMorse(this.currentChallenge);
+        }
     }
 
     /**
@@ -746,43 +599,20 @@ export class MorseTrainer {
     generateNextChallenge(playNow = true) {
         this.stopPlayback();
         this.dom.displays.aiTipContainer.classList.add(CSS_CLASSES.HIDDEN);
-        
-        const unlockedCharSet = this.getUnlockedSet();
-        const unlockedCharArray = Array.from(unlockedCharSet);
-        const contentPool = this.getFilteredPool();
-        
-        const hasContent = (contentPool.words.length + contentPool.abbrs.length + 
-                          contentPool.qcodes.length + contentPool.phrases.length) > 0;
-        const useRealContent = hasContent && Math.random() < CONTENT_GENERATION.REAL_CONTENT_PROBABILITY;
 
-        let nextChallenge = '';
-        let nextMeaning = '';
+        const result = this.contentGenerator.generateChallenge(
+            this.stateManager.settings.lessonLevel,
+            this.stateManager.settings.manualChars
+        );
 
-        if (useRealContent) {
-            const availableContentTypes = [];
-            if (contentPool.words.length) availableContentTypes.push('words');
-            if (contentPool.abbrs.length) availableContentTypes.push('abbrs');
-            if (contentPool.qcodes.length) availableContentTypes.push('qcodes');
-            if (contentPool.phrases.length) availableContentTypes.push('phrases');
-            
-            const contentType = pickRandomItem(availableContentTypes);
-            const selectedItem = pickRandomItem(contentPool[contentType]);
-            
-            nextChallenge = typeof selectedItem === 'string' ? selectedItem : selectedItem.code;
-            nextMeaning = typeof selectedItem === 'string' ? '' : selectedItem.meaning;
-        } else {
-            // Generate synthetic challenge using random characters
-            nextChallenge = generateSyntheticChallenge(unlockedCharArray);
-        }
-
-        this.state.currentChallenge = nextChallenge;
-        this.state.currentMeaning = nextMeaning;
-        this.state.hasPlayedCurrent = false;
+        this.currentChallenge = result.challenge;
+        this.currentMeaning = result.meaning;
+        this.hasPlayedCurrent = false;
         this.dom.inputs.user.value = '';
         this.dom.displays.feedback.classList.add('hidden');
         this.renderSubmitButton();
 
-        if (playNow) setTimeout(() => this.playMorse(nextChallenge), 100);
+        if (playNow) setTimeout(() => this.playMorse(this.currentChallenge), 100);
     }
 
     /**
@@ -791,33 +621,36 @@ export class MorseTrainer {
      * @public
      */
     checkAnswer() {
-        if (!this.state.currentChallenge || this.state.isPlaying || !this.state.hasPlayedCurrent) return;
-        
+        if (!this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent) return;
+
         const userAnswer = this.dom.inputs.user.value.toUpperCase().trim();
-        const correctAnswer = this.state.currentChallenge.toUpperCase();
+        const correctAnswer = this.currentChallenge.toUpperCase();
         const isCorrect = userAnswer === correctAnswer;
 
         // Update accuracy statistics
         correctAnswer.split('').forEach(character => {
             if (!MORSE_LIB[character]) return;
-            if (!this.state.stats.accuracy[character]) {
-                this.state.stats.accuracy[character] = { correct: 0, total: 0 };
+            if (!this.stateManager.stats.accuracy[character]) {
+                this.stateManager.stats.accuracy[character] = { correct: 0, total: 0 };
             }
-            this.state.stats.accuracy[character].total++;
+            this.stateManager.stats.accuracy[character].total++;
             if (isCorrect) {
-                this.state.stats.accuracy[character].correct++;
+                this.stateManager.stats.accuracy[character].correct++;
             }
         });
-        
+
         // Update history
-        this.state.stats.history.unshift({
+        this.stateManager.stats.history.unshift({
             challenge: correctAnswer,
             input: userAnswer,
             correct: isCorrect,
             timestamp: Date.now()
         });
-        this.state.stats.history = this.state.stats.history.slice(0, CONTENT_GENERATION.HISTORY_LIMIT);
-        this.saveStats(); // Save stats immediately, not debounced
+        this.stateManager.stats.history = this.stateManager.stats.history.slice(0, CONTENT_GENERATION.HISTORY_LIMIT);
+        
+        // Update content generator's accuracy data
+        this.contentGenerator.updateAccuracyData(this.stateManager.stats.accuracy);
+        this.stateManager.saveStats(); // Save stats immediately, not debounced
 
         // Show feedback
         const feedbackElement = this.dom.displays.feedback;
@@ -825,10 +658,10 @@ export class MorseTrainer {
         
         if (isCorrect) {
             feedbackElement.classList.add(CSS_CLASSES.SUCCESS);
-            feedbackElement.textContent = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
-            if (this.state.activeTab === 'train') {
-                const delay = this.state.settings.autoPlay ? PLAYBACK_DELAYS.AUTO_PLAY_NEXT : 0;
-                if (this.state.settings.autoPlay) {
+            feedbackElement.textContent = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}`;
+            if (this.activeTab === 'train') {
+                const delay = this.stateManager.settings.autoPlay ? PLAYBACK_DELAYS.AUTO_PLAY_NEXT : 0;
+                if (this.stateManager.settings.autoPlay) {
                     setTimeout(() => this.generateNextChallenge(true), delay);
                 } else {
                     this.generateNextChallenge(false); // Prep next but wait
@@ -838,7 +671,7 @@ export class MorseTrainer {
         } else {
             feedbackElement.classList.add(CSS_CLASSES.ERROR);
             const displayedUserAnswer = userAnswer || UI_FEEDBACK.EMPTY_INPUT;
-            feedbackElement.textContent = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.state.currentMeaning ? ` (${this.state.currentMeaning})` : ''}`;
+            feedbackElement.textContent = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}`;
         }
     }
 
@@ -847,9 +680,9 @@ export class MorseTrainer {
      * @private
      */
     checkAutoLevel() {
-        if (!this.state.settings.autoLevel) return;
+        if (!this.stateManager.settings.autoLevel) return;
         
-        const recentHistory = this.state.stats.history;
+        const recentHistory = this.stateManager.stats.history;
         if (recentHistory.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) return;
         
         const recentDrills = recentHistory.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
@@ -857,10 +690,10 @@ export class MorseTrainer {
         const accuracyPercentage = (correctCount / recentDrills.length) * 100;
 
         if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY && 
-            this.state.settings.lessonLevel < KOCH_SEQUENCE.length) {
+            this.stateManager.settings.lessonLevel < KOCH_SEQUENCE.length) {
             this.changeLevel(1);
         } else if (accuracyPercentage < AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY && 
-                   this.state.settings.lessonLevel > LEVEL_LIMITS.MIN) {
+                   this.stateManager.settings.lessonLevel > LEVEL_LIMITS.MIN) {
             this.changeLevel(-1);
         }
     }
@@ -872,14 +705,14 @@ export class MorseTrainer {
      * @private
      */
     toggleChar(char) {
-        const lvlIdx = this.state.settings.lessonLevel;
+        const lvlIdx = this.stateManager.settings.lessonLevel;
         const charIdx = KOCH_SEQUENCE.indexOf(char);
         if (charIdx < lvlIdx) return; // Locked by level
 
-        const manual = this.state.settings.manualChars;
-        if (manual.includes(char)) this.state.settings.manualChars = manual.filter(c => c !== char);
-        else this.state.settings.manualChars.push(char);
-        this.saveSettings();
+        const manual = this.stateManager.settings.manualChars;
+        if (manual.includes(char)) this.stateManager.settings.manualChars = manual.filter(c => c !== char);
+        else this.stateManager.settings.manualChars.push(char);
+        this.stateManager.saveSettings();
         this.renderKochGrid();
     }
 
@@ -889,38 +722,22 @@ export class MorseTrainer {
      * @private
      */
     changeLevel(delta) {
-        let newLevel = this.state.settings.lessonLevel + delta;
+        let newLevel = this.stateManager.settings.lessonLevel + delta;
         if (delta > 0) {
             while (newLevel < KOCH_SEQUENCE.length) {
-                if (!this.state.settings.manualChars.includes(KOCH_SEQUENCE[newLevel - 1])) break;
+                if (!this.stateManager.settings.manualChars.includes(KOCH_SEQUENCE[newLevel - 1])) break;
                 newLevel++;
             }
         }
         newLevel = Math.max(LEVEL_LIMITS.MIN, Math.min(KOCH_SEQUENCE.length, newLevel));
-        if (newLevel !== this.state.settings.lessonLevel) {
-            this.state.settings.lessonLevel = newLevel;
-            this.saveSettings();
+        if (newLevel !== this.stateManager.settings.lessonLevel) {
+            this.stateManager.settings.lessonLevel = newLevel;
+            this.stateManager.saveSettings();
             this.renderKochGrid();
         }
     }
 
     // --- AI / Offline Simulation ---
-    /**
-     * Create an AI language model session
-     * Supports both old (window.ai) and new (window.LanguageModel) APIs
-     * @returns {Promise<Object>} AI session object with prompt method
-     * @throws {Error} If neither API is available
-     * @private
-     */
-    async createAISession() {
-        if (this.state.aiAPI === 'LanguageModel') {
-            return await window.LanguageModel.create({ language: 'en' });
-        } else if (this.state.aiAPI === 'window.ai') {
-            return await window.ai.languageModel.create();
-        }
-        throw new Error('No AI API available');
-    }
-
     /**
      * Generate AI-powered broadcast: Creates realistic sentences from unlocked characters
      * Falls back to offline simulation if AI unavailable
@@ -933,81 +750,26 @@ export class MorseTrainer {
         feedbackElement.classList.add(CSS_CLASSES.INFO);
         feedbackElement.textContent = UI_FEEDBACK.INTERCEPTING;
 
-        if (!this.state.settings.apiKey && !this.state.hasBrowserAI) {
-            // Offline Simulation
-            setTimeout(() => this.generateAIBroadcastOffline(), PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
-            return;
-        }
-
-        // Browser AI Logic
-        if (this.state.hasBrowserAI) {
-            try {
-                const session = await this.createAISession();
-                const unlockedCharacters = Array.from(this.getUnlockedSet()).join(', ');
-                const prompt = AI_PROMPTS.BROADCAST(unlockedCharacters);
-                const result = await session.prompt(prompt);
-                session.destroy(); // Clean up session
-                
-                // Parse and validate the result
-                const cleanedText = cleanMorseText(result);
-                const unlockedSet = this.getUnlockedSet();
-                const isValidText = cleanedText.split('').every(char => char === ' ' || unlockedSet.has(char));
-                
-                if (isValidText && cleanedText.trim()) {
-                    this.state.currentChallenge = cleanedText.trim();
-                    this.state.currentMeaning = UI_FEEDBACK.AI_BROADCAST;
-                    this.dom.inputs.user.value = '';
-                    feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-                    this.playMorse(this.state.currentChallenge);
-                } else {
-                    throw new Error('Invalid AI response');
-                }
-            } catch (error) {
-                console.log('Browser AI generation failed:', error.message);
-                // Fallback to offline simulation
+        this.aiOperations.generateBroadcast(
+            (result) => { // onSuccess
+                this.currentChallenge = result.challenge;
+                this.currentMeaning = result.meaning;
+                this.dom.inputs.user.value = '';
+                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+                this.playMorse(this.currentChallenge);
+            },
+            (result) => { // onFallback
+                this.currentChallenge = result.challenge;
+                this.currentMeaning = result.meaning;
+                this.dom.inputs.user.value = '';
+                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+                this.playMorse(this.currentChallenge);
+            },
+            (error) => { // onError
+                console.error('AI broadcast failed:', error);
                 feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
-                setTimeout(() => this.generateAIBroadcast(), PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
-                this.state.hasBrowserAI = false;
             }
-        }
-    }
-
-    /**
-     * Generate offline broadcast simulation
-     * @private
-     */
-    generateAIBroadcastOffline() {
-        const contentPool = this.getFilteredPool();
-        const broadcastParts = [];
-        
-        if (Math.random() > 0.5 && contentPool.abbrs.length) {
-            const selectedAbbr = pickRandomItem(contentPool.abbrs);
-            broadcastParts.push(selectedAbbr.code);
-        }
-        if (contentPool.words.length) {
-            broadcastParts.push(pickRandomItem(contentPool.words));
-        }
-        if (Math.random() > 0.5 && contentPool.qcodes.length) {
-            const selectedQCode = pickRandomItem(contentPool.qcodes);
-            broadcastParts.push(selectedQCode.code);
-        }
-        
-        const validParts = broadcastParts.filter(part => 
-            part.split('').every(char => this.getUnlockedSet().has(char))
         );
-        
-        const feedbackElement = this.dom.displays.feedback;
-        if (validParts.length > 0) {
-            this.state.currentChallenge = validParts.join(' ');
-            this.state.currentMeaning = UI_FEEDBACK.SIMULATED_BROADCAST;
-        } else {
-            this.generateNextChallenge(false);
-            this.state.currentMeaning = UI_FEEDBACK.WEAK_SIGNAL;
-        }
-        
-        this.dom.inputs.user.value = '';
-        feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-        this.playMorse(this.state.currentChallenge);
     }
 
     /**
@@ -1020,76 +782,37 @@ export class MorseTrainer {
         const feedbackElement = this.dom.displays.feedback;
         feedbackElement.classList.remove(CSS_CLASSES.HIDDEN);
         feedbackElement.textContent = UI_FEEDBACK.CONSULTING;
-        
-        if (!this.state.settings.apiKey && !this.state.hasBrowserAI) {
-            setTimeout(() => this.generateAICoachOffline(), PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
-            return;
-        }
 
-        // Browser AI Logic
-        if (this.state.hasBrowserAI) {
-            try {
-                const weakCharacters = getWeakCharacters(this.state.stats.accuracy);
-                const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet());
-                
-                const session = await this.createAISession();
-                const allUnlockedCharacters = Array.from(this.getUnlockedSet()).join(', ');
-                const prompt = AI_PROMPTS.COACH(focusCharacters.join(', '), allUnlockedCharacters);
-                const result = await session.prompt(prompt);
-                session.destroy(); // Clean up session
-                
-                // Parse and validate the result
-                const cleanedText = cleanMorseText(result);
-                const unlockedSet = this.getUnlockedSet();
-                const isValidText = cleanedText.split('').every(char => char === ' ' || unlockedSet.has(char));
-                
-                if (isValidText && cleanedText.trim()) {
-                    this.state.currentChallenge = cleanedText;
-                    this.state.currentMeaning = "Smart Coach (AI)";
-                    this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
-                    const tipMessage = weakCharacters.length > 0 ? 
-                        UI_FEEDBACK.WEAK_CHARS_MESSAGE : 
-                        UI_FEEDBACK.DRILL_GENERATED_MESSAGE;
-                    this.dom.displays.aiTipText.textContent = tipMessage;
-                    feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-                    this.playMorse(this.state.currentChallenge);
-                } else {
-                    throw new Error('Invalid AI response');
-                }
-            } catch (error) {
-                console.log('Browser AI coach failed:', error.message);
-                // Fallback to offline simulation
+        this.aiOperations.generateCoach(
+            (result) => { // onSuccess
+                this.currentChallenge = result.challenge;
+                this.currentMeaning = result.meaning;
+                this.dom.inputs.user.value = '';
+                this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
+                const tipMessage = result.hasWeakChars
+                    ? UI_FEEDBACK.WEAK_CHARS_MESSAGE
+                    : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
+                this.dom.displays.aiTipText.textContent = tipMessage;
+                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+                this.playMorse(this.currentChallenge);
+            },
+            (result) => { // onFallback
+                this.currentChallenge = result.challenge;
+                this.currentMeaning = result.meaning;
+                this.dom.inputs.user.value = '';
+                this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
+                const tipMessage = result.hasWeakChars
+                    ? UI_FEEDBACK.WEAK_CHARS_MESSAGE
+                    : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
+                this.dom.displays.aiTipText.textContent = tipMessage;
+                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+                this.playMorse(this.currentChallenge);
+            },
+            (error) => { // onError
+                console.error('AI coach failed:', error);
                 feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
-                setTimeout(() => this.generateAICoach(), PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
-                this.state.hasBrowserAI = false;
             }
-        }
-    }
-
-    /**
-     * Generate offline coach drill simulation
-     * @private
-     */
-    generateAICoachOffline() {
-        const weakCharacters = getWeakCharacters(this.state.stats.accuracy);
-        const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet());
-        
-        const groups = [];
-        for (let i = 0; i < CONTENT_GENERATION.COACH_DRILL_GROUPS; i++) {
-            groups.push(generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
-        }
-        
-        this.state.currentChallenge = groups.join(' ');
-        this.state.currentMeaning = UI_FEEDBACK.OFFLINE_COACH;
-        this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
-        const tipMessage = weakCharacters.length > 0 ? 
-            UI_FEEDBACK.WEAK_CHARS_MESSAGE : 
-            UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
-        this.dom.displays.aiTipText.textContent = tipMessage;
-        
-        const feedbackElement = this.dom.displays.feedback;
-        feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-        this.playMorse(this.state.currentChallenge);
+        );
     }
 
     // --- Render Helpers ---
@@ -1100,9 +823,12 @@ export class MorseTrainer {
      * @private
      */
     toggleModal(name, show) {
-        const m = this.dom.modals[name];
-        if (m) m.classList.toggle(CSS_CLASSES.HIDDEN, !show);
-        if (name === 'settings' && !show) { this.saveSettings(); this.renderKochGrid(); }
+        const modal = this.dom.modals[name];
+        if (modal) modal.classList.toggle(CSS_CLASSES.HIDDEN, !show);
+        if (name === MODAL_IDENTIFIERS.SETTINGS && !show) {
+            this.stateManager.saveSettings();
+            this.renderKochGrid();
+        }
     }
 
     /**
@@ -1111,7 +837,7 @@ export class MorseTrainer {
      * @private
      */
     switchTab(id) {
-        this.state.activeTab = id;
+        this.activeTab = id;
         Object.values(this.dom.tabs).forEach(b => b.classList.remove(CSS_CLASSES.ACTIVE));
         if (this.dom.tabs[id]) this.dom.tabs[id].classList.add(CSS_CLASSES.ACTIVE);
         
@@ -1120,7 +846,7 @@ export class MorseTrainer {
         if (id === 'stats') { this.dom.views.stats.classList.remove(CSS_CLASSES.HIDDEN); this.renderStats(); }
         if (id === 'guide') this.dom.views.guide.classList.remove(CSS_CLASSES.HIDDEN);
         
-        if (id === 'train' && !this.state.currentChallenge) this.generateNextChallenge(false);
+        if (id === 'train' && !this.currentChallenge) this.generateNextChallenge(false);
     }
 
     /**
@@ -1131,9 +857,9 @@ export class MorseTrainer {
      */
     updateSetting(key, newValue) {
         if (key === 'apiKey') {
-            this.state.settings.apiKey = newValue.trim();
+            this.stateManager.settings.apiKey = newValue.trim();
         } else {
-            this.state.settings[key] = key === 'autoPlay' ? newValue : parseInt(newValue);
+            this.stateManager.settings[key] = key === 'autoPlay' ? newValue : parseInt(newValue);
         }
         this.renderSettings();
         this._debouncedSaveSettings(); // Save after UI update
@@ -1145,7 +871,7 @@ export class MorseTrainer {
      * @private
      */
     toggleAutoPlay(newValue) {
-        this.state.settings.autoPlay = newValue;
+        this.stateManager.settings.autoPlay = newValue;
         this._debouncedSaveSettings();
     }
 
@@ -1155,11 +881,11 @@ export class MorseTrainer {
      */
     confirmReset() {
         // Create fresh copies to avoid shared reference issues
-        this.state.stats = JSON.parse(JSON.stringify(DEFAULT_STATS));
-        this.state.settings.lessonLevel = LEVEL_LIMITS.MIN;
-        this.state.settings.manualChars = [];
-        this.saveStats();
-        this.saveSettings();
+        this.stateManager.stats = JSON.parse(JSON.stringify(DEFAULT_STATS));
+        this.stateManager.settings.lessonLevel = LEVEL_LIMITS.MIN;
+        this.stateManager.settings.manualChars = [];
+        this.stateManager.saveStats();
+        this.stateManager.saveSettings();
         this.toggleModal('reset', false);
         this.renderStats();
         this.renderKochGrid();
@@ -1171,7 +897,7 @@ export class MorseTrainer {
      * @private
      */
     renderSettings() {
-        const s = this.state.settings;
+        const s = this.stateManager.settings;
         this.container.querySelector('#display-wpm').textContent = s.wpm + " WPM";
         this.container.querySelector('#display-farnsworth').textContent = s.farnsworthWpm + " WPM";
         this.container.querySelector('#display-frequency').textContent = s.frequency + " Hz";
@@ -1179,12 +905,12 @@ export class MorseTrainer {
         this.dom.inputs.farnsworth.value = s.farnsworthWpm;
         this.dom.inputs.frequency.value = s.frequency;
         this.dom.inputs.apiKey.value = s.apiKey;
-        
+
         const badge = this.container.querySelector('#ai-status-badge');
         if (s.apiKey) { badge.className = 'mt-badge-large active-cloud'; badge.textContent = "Active: Gemini Cloud"; }
-        else if (this.state.hasBrowserAI) { badge.className = 'mt-badge-large active-local'; badge.textContent = "Active: Chrome AI"; }
+        else if (this.aiOperations.hasBrowserAI) { badge.className = 'mt-badge-large active-local'; badge.textContent = "Active: Chrome AI"; }
         else { badge.className = 'mt-badge-large inactive'; badge.textContent = "Active: Offline Template"; }
-        
+
         this.renderKochGrid();
     }
 
@@ -1195,7 +921,7 @@ export class MorseTrainer {
     renderPlayButton() {
         const btn = this.dom.displays.playBtn;
         const txt = this.dom.displays.playStatus;
-        if (this.state.isPlaying) {
+        if (this.audioSynthesizer.isPlaying) {
             btn.className = `mt-play-btn ${CSS_CLASSES.STOP}`;
             btn.innerHTML = ICONS.stop;
             txt.textContent = "Click to Stop";
@@ -1212,7 +938,7 @@ export class MorseTrainer {
      */
     renderSubmitButton() {
         const btn = this.dom.displays.submitBtn;
-        const disabled = !this.state.currentChallenge || this.state.isPlaying || !this.state.hasPlayedCurrent;
+        const disabled = !this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent;
         btn.disabled = disabled;
     }
 
@@ -1225,8 +951,8 @@ export class MorseTrainer {
         const badge = this.domCache.query('#level-badge');
         if (!grid) return;
 
-        const lvlIdx = this.state.settings.lessonLevel;
-        const manual = this.state.settings.manualChars;
+        const lvlIdx = this.stateManager.settings.lessonLevel;
+        const manual = this.stateManager.settings.manualChars;
 
         const fragment = document.createDocumentFragment();
         KOCH_SEQUENCE.forEach((char, idx) => {
@@ -1309,17 +1035,17 @@ export class MorseTrainer {
         const historyList = this.domCache.query('#history-list');
 
         if (accuracyElement) {
-            const accuracyPercentage = calculateAccuracyPercentage(this.state.stats.accuracy);
+            const accuracyPercentage = calculateAccuracyPercentage(this.stateManager.stats.accuracy);
             accuracyElement.textContent = accuracyPercentage + '%';
         }
 
         if (drillsElement) {
-            drillsElement.textContent = this.state.stats.history.length;
+            drillsElement.textContent = this.stateManager.stats.history.length;
         }
 
         if (historyList) {
             const fragment = document.createDocumentFragment();
-            this.state.stats.history.slice(0, UI_RENDERING.HISTORY_DISPLAY_LIMIT).forEach((entry) => {
+            this.stateManager.stats.history.slice(0, UI_RENDERING.HISTORY_DISPLAY_LIMIT).forEach((entry) => {
                 const item = document.createElement('div');
                 item.className = `mt-history-item ${entry.correct ? CSS_CLASSES.SUCCESS : CSS_CLASSES.ERROR}`;
                 const timeElapsedFormatted = formatTimeElapsed(Date.now() - entry.timestamp);

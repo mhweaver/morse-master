@@ -28,14 +28,46 @@ Because this project uses ES Modules (`import/export`), it must be run via a loc
 
 ## File Structure
 
-* `index.html`: A simple wrapper demonstrating how to initialize the app.
-* `morse-trainer.js`: The core logic class. Zero external dependencies.
-* `morse-trainer.css`: All styling, scoped with CSS variables for easy theming.
-* `start_server.sh`: A simple Python-based HTTP server for local testing.
-* `THEMING.md`: Complete theming documentation with examples and all CSS variables.
-* `THEMES_EXAMPLES.html`: Live gallery showcasing 7 different theme variations.
+### Core Application
+* **`morse-trainer.js`** - Main orchestrator class that coordinates all services and UI rendering
+* **`index.html`** - Simple wrapper demonstrating how to initialize the app
+* **`morse-trainer.css`** - All styling, scoped with CSS variables for easy theming
+
+### Service Classes (Modular Architecture)
+* **`audio-synthesizer.js`** - Encapsulates Web Audio API operations for Morse code sound synthesis
+* **`state-manager.js`** - Manages persistent state (settings, statistics) with localStorage integration and validation
+* **`content-generator.js`** - Generates training challenges and validates AI responses
+* **`ai-operations.js`** - Handles browser AI APIs with fallbacks for challenge generation
+
+### Utilities & Support
+* **`dom-utils.js`** - DOM caching and element management
+* **`error-handler.js`** - Error handling and AI operation wrapper
+* **`utils.js`** - Helper functions (timing, statistics, debouncing)
+* **`constants.js`** - Centralized configuration, magic values, and content dictionaries
+
+### Documentation & Configuration
+* **`THEMING.md`** - Complete theming documentation with CSS variables and examples
+* **`THEMES_EXAMPLES.html`** - Live gallery of 7 different theme variations
+* **`vitest.config.js`** - Test runner configuration
+* **`start_server.sh`** - Python-based HTTP server for local development
 
 ## Deployment & Embedding
+
+### Architecture
+
+Morse Master uses a **modular architecture** with separated concerns:
+
+- **MorseTrainer** (core orchestrator) - Coordinates UI rendering and delegates logic to service classes
+- **AudioSynthesizer** - Handles all Web Audio API operations (synthesis, playback control, timing)
+- **StateManager** - Manages persistent settings and statistics with localStorage
+- **ContentGenerator** - Generates practice challenges and validates responses
+- **AIOperations** - Abstracts browser AI APIs with graceful fallbacks
+
+This design enables:
+- ✅ Easy testing with isolated service classes
+- ✅ Simple customization by modifying individual services
+- ✅ Zero external dependencies (pure vanilla JavaScript)
+- ✅ ~50% smaller main class (1000 lines vs 1300+ before refactoring)
 
 ### 1. Standalone (Static Host)
 Upload `index.html`, `morse-trainer.js`, and `morse-trainer.css` to any static hosting service (AWS S3, GitHub Pages, Netlify). It works immediately with no build process.
@@ -151,7 +183,7 @@ npm run test:coverage
 
 ### Test Coverage
 
-The test suite includes **166 tests** covering:
+The test suite includes **169 tests** covering:
 
 - **Core Functionality** - Morse code generation, audio playback, challenge generation, answer validation, statistics tracking
 - **UI Behavior** - DOM rendering, event handlers, tab navigation, modal interactions, keyboard shortcuts

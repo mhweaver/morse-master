@@ -27,15 +27,15 @@ describe('MorseTrainer - Integration Tests', () => {
     it('should complete a full training session with correct answer', () => {
       // Start by generating a challenge
       trainer.generateNextChallenge(false);
-      const challenge = trainer.state.currentChallenge;
+      const challenge = trainer.currentChallenge;
       
       expect(challenge).toBeTruthy();
       expect(trainer.dom.inputs.user.value).toBe('');
-      expect(trainer.state.hasPlayedCurrent).toBe(false);
+      expect(trainer.hasPlayedCurrent).toBe(false);
       
       // Mark as played (simulating playback completion)
-      trainer.state.hasPlayedCurrent = true;
-      trainer.state.isPlaying = false;
+      trainer.hasPlayedCurrent = true;
+      trainer.audioSynthesizer.isPlaying = false;
       
       // Simulate playback completion
       vi.advanceTimersByTime(5000);
@@ -46,17 +46,17 @@ describe('MorseTrainer - Integration Tests', () => {
       
       // Verify success feedback
       expect(trainer.dom.displays.feedback.classList.contains('success')).toBe(true);
-      expect(trainer.state.stats.history.length).toBe(1);
-      expect(trainer.state.stats.history[0].correct).toBe(true);
+      expect(trainer.stateManager.stats.history.length).toBe(1);
+      expect(trainer.stateManager.stats.history[0].correct).toBe(true);
     });
 
     it('should handle incorrect answer and retry', () => {
       trainer.generateNextChallenge(false);
-      const challenge = trainer.state.currentChallenge;
+      const challenge = trainer.currentChallenge;
       
       // Mark as played
-      trainer.state.hasPlayedCurrent = true;
-      trainer.state.isPlaying = false;
+      trainer.hasPlayedCurrent = true;
+      trainer.audioSynthesizer.isPlaying = false;
       vi.advanceTimersByTime(5000);
       
       // Enter wrong answer
@@ -64,20 +64,20 @@ describe('MorseTrainer - Integration Tests', () => {
       trainer.checkAnswer();
       
       expect(trainer.dom.displays.feedback.classList.contains('error')).toBe(true);
-      expect(trainer.state.stats.history[0].correct).toBe(false);
+      expect(trainer.stateManager.stats.history[0].correct).toBe(false);
       
       // The challenge should remain the same (no auto-advance on wrong answer)
-      expect(trainer.state.currentChallenge).toBe(challenge);
+      expect(trainer.currentChallenge).toBe(challenge);
     });
 
     it('should auto-advance after correct answer when autoPlay enabled', () => {
-      trainer.state.settings.autoPlay = true;
-      trainer.state.activeTab = 'train';
+      trainer.stateManager.settings.autoPlay = true;
+      trainer.activeTab = 'train';
       
       trainer.generateNextChallenge(false);
-      const firstChallenge = trainer.state.currentChallenge;
+      const firstChallenge = trainer.currentChallenge;
       
-      trainer.state.hasPlayedCurrent = true;
+      trainer.hasPlayedCurrent = true;
       trainer.dom.inputs.user.value = firstChallenge;
       trainer.checkAnswer();
       
@@ -85,60 +85,60 @@ describe('MorseTrainer - Integration Tests', () => {
       vi.advanceTimersByTime(1300);
       
       // Should have new challenge
-      expect(trainer.state.currentChallenge).not.toBe(firstChallenge);
+      expect(trainer.currentChallenge).not.toBe(firstChallenge);
     });
 
     it('should not auto-advance when autoPlay disabled', () => {
-      trainer.state.settings.autoPlay = false;
-      trainer.state.activeTab = 'train';
+      trainer.stateManager.settings.autoPlay = false;
+      trainer.activeTab = 'train';
       
       trainer.generateNextChallenge(false);
-      const firstChallenge = trainer.state.currentChallenge;
+      const firstChallenge = trainer.currentChallenge;
       
-      trainer.state.hasPlayedCurrent = true;
+      trainer.hasPlayedCurrent = true;
       trainer.dom.inputs.user.value = firstChallenge;
       trainer.checkAnswer();
       
       vi.advanceTimersByTime(1300);
       
       // Should generate next but not play it
-      expect(trainer.state.currentChallenge).not.toBe(firstChallenge);
-      expect(trainer.state.hasPlayedCurrent).toBe(false);
+      expect(trainer.currentChallenge).not.toBe(firstChallenge);
+      expect(trainer.hasPlayedCurrent).toBe(false);
     });
   });
 
   describe('Level Progression Workflow', () => {
     it('should automatically increase level after consistent success', () => {
-      trainer.state.settings.autoLevel = true;
-      trainer.state.settings.lessonLevel = 5;
+      trainer.stateManager.settings.autoLevel = true;
+      trainer.stateManager.settings.lessonLevel = 5;
       
       // Simulate 20 consecutive correct answers
       for (let i = 0; i < 20; i++) {
-        trainer.state.currentChallenge = 'A';
-        trainer.state.hasPlayedCurrent = true;
+        trainer.currentChallenge = 'A';
+        trainer.hasPlayedCurrent = true;
         trainer.dom.inputs.user.value = 'A';
         trainer.checkAnswer();
       }
       
       // Level should increase
-      expect(trainer.state.settings.lessonLevel).toBeGreaterThan(5);
+      expect(trainer.stateManager.settings.lessonLevel).toBeGreaterThan(5);
     });
 
     it('should automatically decrease level after poor performance', () => {
       // Note: checkAutoLevel is only called after CORRECT answers in current implementation
       // So we need to alternate correct/wrong answers to trigger the check
-      trainer.state.settings.autoLevel = true;
-      trainer.state.settings.lessonLevel = 5;
-      trainer.state.activeTab = 'train';
+      trainer.stateManager.settings.autoLevel = true;
+      trainer.stateManager.settings.lessonLevel = 5;
+      trainer.activeTab = 'train';
             
       // Build history: correct, correct, wrong, wrong pattern to get < 60% accuracy
       // This gives us 50% accuracy but still calls checkAutoLevel  
-      const initialLevel = trainer.state.settings.lessonLevel;
+      const initialLevel = trainer.stateManager.settings.lessonLevel;
       
       for (let i = 0; i < 20; i++) {
-        trainer.state.currentChallenge = 'KM';
-        trainer.state.hasPlayedCurrent = true;
-        trainer.state.isPlaying = false;
+        trainer.currentChallenge = 'KM';
+        trainer.hasPlayedCurrent = true;
+        trainer.audioSynthesizer.isPlaying = false;
         // Pattern: C, C, W, W, C, C, W, W... (50% accuracy)
         const cyclePosition = i % 4;
         trainer.dom.inputs.user.value = (cyclePosition < 2) ? 'KM' : 'XX';
@@ -146,33 +146,33 @@ describe('MorseTrainer - Integration Tests', () => {
       }
       
       // Level should decrease due to poor performance (50% < 60%)
-      expect(trainer.state.settings.lessonLevel).toBeLessThan(initialLevel);
+      expect(trainer.stateManager.settings.lessonLevel).toBeLessThan(initialLevel);
     });
 
     it('should respect manual level changes', () => {
-      const originalLevel = trainer.state.settings.lessonLevel;
+      const originalLevel = trainer.stateManager.settings.lessonLevel;
       
       // Manually increase level
       const nextBtn = container.querySelector('[data-action="level:next"]');
       fireEvent.click(nextBtn);
       
-      expect(trainer.state.settings.lessonLevel).toBe(originalLevel + 1);
+      expect(trainer.stateManager.settings.lessonLevel).toBe(originalLevel + 1);
       
       // Manually decrease level
       const prevBtn = container.querySelector('[data-action="level:prev"]');
       fireEvent.click(prevBtn);
       
-      expect(trainer.state.settings.lessonLevel).toBe(originalLevel);
+      expect(trainer.stateManager.settings.lessonLevel).toBe(originalLevel);
     });
   });
 
   describe('Settings Persistence Workflow', () => {
     it('should persist settings across sessions', () => {
       // Change settings
-      trainer.state.settings.wpm = 35;
-      trainer.state.settings.frequency = 850;
-      trainer.state.settings.lessonLevel = 8;
-      trainer.saveSettings();
+      trainer.stateManager.settings.wpm = 35;
+      trainer.stateManager.settings.frequency = 850;
+      trainer.stateManager.settings.lessonLevel = 8;
+      trainer.stateManager.saveSettings();
       
       // Create new instance (simulates page reload)
       const newContainer = document.createElement('div');
@@ -180,17 +180,17 @@ describe('MorseTrainer - Integration Tests', () => {
       const newTrainer = new MorseTrainer(newContainer);
       
       // Settings should be restored
-      expect(newTrainer.state.settings.wpm).toBe(35);
-      expect(newTrainer.state.settings.frequency).toBe(850);
-      expect(newTrainer.state.settings.lessonLevel).toBe(8);
+      expect(newTrainer.stateManager.settings.wpm).toBe(35);
+      expect(newTrainer.stateManager.settings.frequency).toBe(850);
+      expect(newTrainer.stateManager.settings.lessonLevel).toBe(8);
       
       document.body.removeChild(newContainer);
     });
 
     it('should persist stats across sessions', () => {
       // Add some stats
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.hasPlayedCurrent = true;
+      trainer.currentChallenge = 'TEST';
+      trainer.hasPlayedCurrent = true;
       trainer.dom.inputs.user.value = 'TEST';
       trainer.checkAnswer();
       
@@ -200,27 +200,27 @@ describe('MorseTrainer - Integration Tests', () => {
       const newTrainer = new MorseTrainer(newContainer);
       
       // Stats should be restored
-      expect(newTrainer.state.stats.history.length).toBeGreaterThan(0);
-      expect(newTrainer.state.stats.accuracy.T).toBeTruthy();
+      expect(newTrainer.stateManager.stats.history.length).toBeGreaterThan(0);
+      expect(newTrainer.stateManager.stats.accuracy.T).toBeTruthy();
       
       document.body.removeChild(newContainer);
     });
 
     it('should clear all data on reset', () => {
       // Add data
-      trainer.state.settings.lessonLevel = 15;
-      trainer.state.settings.manualChars = ['X', 'Y', 'Z'];
-      trainer.state.stats.history = [{ challenge: 'TEST', correct: true }];
-      trainer.state.stats.accuracy = { T: { correct: 5, total: 5 } };
+      trainer.stateManager.settings.lessonLevel = 15;
+      trainer.stateManager.settings.manualChars = ['X', 'Y', 'Z'];
+      trainer.stateManager.stats.history = [{ challenge: 'TEST', correct: true }];
+      trainer.stateManager.stats.accuracy = { T: { correct: 5, total: 5 } };
       
       // Confirm reset
       trainer.confirmReset();
       
       // Everything should be cleared
-      expect(trainer.state.settings.lessonLevel).toBe(2);
-      expect(trainer.state.settings.manualChars).toEqual([]);
-      expect(trainer.state.stats.history).toEqual([]);
-      expect(trainer.state.stats.accuracy).toEqual({});
+      expect(trainer.stateManager.settings.lessonLevel).toBe(2);
+      expect(trainer.stateManager.settings.manualChars).toEqual([]);
+      expect(trainer.stateManager.stats.history).toEqual([]);
+      expect(trainer.stateManager.stats.accuracy).toEqual({});
     });
   });
 
@@ -228,26 +228,26 @@ describe('MorseTrainer - Integration Tests', () => {
     it('should maintain state when switching between tabs', () => {
       // Set up some state in training
       trainer.generateNextChallenge(false);
-      const challenge = trainer.state.currentChallenge;
+      const challenge = trainer.currentChallenge;
       
       // Switch to stats
       const statsTab = container.querySelector('[data-action="tab:stats"]');
       fireEvent.click(statsTab);
       
-      expect(trainer.state.activeTab).toBe('stats');
+      expect(trainer.activeTab).toBe('stats');
       
       // Switch back to train
       const trainTab = container.querySelector('[data-action="tab:train"]');
       fireEvent.click(trainTab);
       
-      expect(trainer.state.activeTab).toBe('train');
+      expect(trainer.activeTab).toBe('train');
       // Challenge should still be there
-      expect(trainer.state.currentChallenge).toBe(challenge);
+      expect(trainer.currentChallenge).toBe(challenge);
     });
 
     it('should render fresh stats when viewing stats tab', () => {
       // Add some history
-      trainer.state.stats.history = [
+      trainer.stateManager.stats.history = [
         { challenge: 'A', correct: true, timestamp: Date.now() },
         { challenge: 'B', correct: false, timestamp: Date.now() },
       ];
@@ -265,7 +265,7 @@ describe('MorseTrainer - Integration Tests', () => {
       const guideTab = container.querySelector('[data-action="tab:guide"]');
       fireEvent.click(guideTab);
       
-      expect(trainer.state.activeTab).toBe('guide');
+      expect(trainer.activeTab).toBe('guide');
       
       // Verify guide content is visible
       const roadmap = container.querySelector('#roadmap-list');
@@ -279,11 +279,11 @@ describe('MorseTrainer - Integration Tests', () => {
   describe('Keyboard Workflow', () => {
     it('should support complete keyboard-only workflow', () => {
       trainer.generateNextChallenge(false);
-      const challenge = trainer.state.currentChallenge;
+      const challenge = trainer.currentChallenge;
       
       // Simulate playing by marking as played
-      trainer.state.hasPlayedCurrent = true;
-      trainer.state.isPlaying = false;
+      trainer.hasPlayedCurrent = true;
+      trainer.audioSynthesizer.isPlaying = false;
       
       vi.advanceTimersByTime(5000);
       
@@ -293,22 +293,22 @@ describe('MorseTrainer - Integration Tests', () => {
       // Press Enter to submit
       fireEvent.keyDown(trainer.dom.inputs.user, { key: 'Enter' });
       
-      expect(trainer.state.stats.history.length).toBeGreaterThan(0);
+      expect(trainer.stateManager.stats.history.length).toBeGreaterThan(0);
     });
 
     it('should allow stopping playback with Escape', () => {
-      trainer.state.currentChallenge = 'TEST';
+      trainer.currentChallenge = 'TEST';
       trainer.playMorse('TEST');
       
-      expect(trainer.state.isPlaying).toBe(true);
+      expect(trainer.audioSynthesizer.isPlaying).toBe(true);
       
       fireEvent.keyDown(document, { key: 'Escape' });
       
-      expect(trainer.state.isPlaying).toBe(false);
+      expect(trainer.audioSynthesizer.isPlaying).toBe(false);
     });
 
     it('should support Ctrl+Space to play from anywhere', () => {
-      trainer.state.currentChallenge = 'TEST';
+      trainer.currentChallenge = 'TEST';
       
       const event = new KeyboardEvent('keydown', {
         code: 'Space',
@@ -318,35 +318,41 @@ describe('MorseTrainer - Integration Tests', () => {
       Object.defineProperty(event, 'preventDefault', { value: vi.fn() });
       document.dispatchEvent(event);
       
-      expect(trainer.state.hasPlayedCurrent).toBe(true);
+      expect(trainer.hasPlayedCurrent).toBe(true);
     });
   });
 
   describe('Manual Character Selection Workflow', () => {
     it('should unlock additional characters via manual selection', () => {
-      trainer.state.settings.lessonLevel = 2; // K, M
-      trainer.state.settings.manualChars = [];
+      trainer.stateManager.settings.lessonLevel = 2; // K, M
+      trainer.stateManager.settings.manualChars = [];
       
-      let unlocked = trainer.getUnlockedSet();
+      let unlocked = trainer.contentGenerator.getUnlockedSet(
+        trainer.stateManager.settings.lessonLevel,
+        trainer.stateManager.settings.manualChars
+      );
       expect(unlocked.size).toBe(2);
       
       // Manually unlock a character
       trainer.toggleChar('X'); // X is beyond level 2
       
-      unlocked = trainer.getUnlockedSet();
+      unlocked = trainer.contentGenerator.getUnlockedSet(
+        trainer.stateManager.settings.lessonLevel,
+        trainer.stateManager.settings.manualChars
+      );
       expect(unlocked.size).toBe(3);
       expect(unlocked.has('X')).toBe(true);
     });
 
     it('should use manually unlocked characters in challenges', () => {
-      trainer.state.settings.lessonLevel = 2;
-      trainer.state.settings.manualChars = ['Z'];
+      trainer.stateManager.settings.lessonLevel = 2;
+      trainer.stateManager.settings.manualChars = ['Z'];
       
       // Generate many challenges and verify Z can appear
       let foundZ = false;
       for (let i = 0; i < 50; i++) {
         trainer.generateNextChallenge(false);
-        if (trainer.state.currentChallenge.includes('Z')) {
+        if (trainer.currentChallenge.includes('Z')) {
           foundZ = true;
           break;
         }
@@ -356,23 +362,23 @@ describe('MorseTrainer - Integration Tests', () => {
     });
 
     it('should toggle manual characters on/off', () => {
-      trainer.state.settings.lessonLevel = 2;
-      trainer.state.settings.manualChars = [];
+      trainer.stateManager.settings.lessonLevel = 2;
+      trainer.stateManager.settings.manualChars = [];
       
       // Add X
       trainer.toggleChar('X');
-      expect(trainer.state.settings.manualChars).toContain('X');
+      expect(trainer.stateManager.settings.manualChars).toContain('X');
       
       // Remove X
       trainer.toggleChar('X');
-      expect(trainer.state.settings.manualChars).not.toContain('X');
+      expect(trainer.stateManager.settings.manualChars).not.toContain('X');
     });
   });
 
   describe('AI Operations Workflow', () => {
     beforeEach(() => {
-      trainer.state.settings.apiKey = '';
-      trainer.state.hasBrowserAI = false;
+      trainer.stateManager.settings.apiKey = '';
+      trainer.aiOperations.hasBrowserAI = false;
     });
 
     it('should generate offline broadcast and play it', () => {
@@ -386,12 +392,12 @@ describe('MorseTrainer - Integration Tests', () => {
       vi.advanceTimersByTime(900);
       
       // Should have generated a challenge
-      expect(trainer.state.currentChallenge).toBeTruthy();
+      expect(trainer.currentChallenge).toBeTruthy();
     });
 
     it('should generate coach drill targeting weak chars', () => {
       // Set up weak characters
-      trainer.state.stats.accuracy = {
+      trainer.stateManager.stats.accuracy = {
         'M': { correct: 3, total: 10 },
         'R': { correct: 2, total: 10 },
       };
@@ -402,7 +408,7 @@ describe('MorseTrainer - Integration Tests', () => {
       vi.advanceTimersByTime(900);
       
       // Should have generated a challenge
-      expect(trainer.state.currentChallenge).toBeTruthy();
+      expect(trainer.currentChallenge).toBeTruthy();
       // Should show tip
       expect(trainer.dom.displays.aiTipContainer.classList.contains('hidden')).toBe(false);
     });
@@ -420,7 +426,7 @@ describe('MorseTrainer - Integration Tests', () => {
       trainer.dom.inputs.wpm.value = '40';
       fireEvent.input(trainer.dom.inputs.wpm);
       
-      expect(trainer.state.settings.wpm).toBe(40);
+      expect(trainer.stateManager.settings.wpm).toBe(40);
       
       // Close settings
       const closeBtn = container.querySelector('[data-action="modal:settings:close"]');
@@ -439,29 +445,29 @@ describe('MorseTrainer - Integration Tests', () => {
       const challenges = ['KM', 'RM', 'SK', 'MR'];
       
       challenges.forEach((challenge, index) => {
-        trainer.state.currentChallenge = challenge;
-        trainer.state.hasPlayedCurrent = true;
+        trainer.currentChallenge = challenge;
+        trainer.hasPlayedCurrent = true;
         trainer.dom.inputs.user.value = index % 2 === 0 ? challenge : 'WRONG';
         trainer.checkAnswer();
       });
       
-      expect(trainer.state.stats.history.length).toBe(4);
-      expect(trainer.state.stats.history[0].correct).toBe(false); // Last one
-      expect(trainer.state.stats.history[1].correct).toBe(true);
-      expect(trainer.state.stats.history[2].correct).toBe(false);
-      expect(trainer.state.stats.history[3].correct).toBe(true);
+      expect(trainer.stateManager.stats.history.length).toBe(4);
+      expect(trainer.stateManager.stats.history[0].correct).toBe(false); // Last one
+      expect(trainer.stateManager.stats.history[1].correct).toBe(true);
+      expect(trainer.stateManager.stats.history[2].correct).toBe(false);
+      expect(trainer.stateManager.stats.history[3].correct).toBe(true);
     });
 
     it('should calculate per-character accuracy over time', () => {
       // Answer with K correct twice, wrong once
       ['K', 'K', 'K'].forEach((challenge, index) => {
-        trainer.state.currentChallenge = challenge;
-        trainer.state.hasPlayedCurrent = true;
+        trainer.currentChallenge = challenge;
+        trainer.hasPlayedCurrent = true;
         trainer.dom.inputs.user.value = index < 2 ? 'K' : 'WRONG';
         trainer.checkAnswer();
       });
       
-      const kStats = trainer.state.stats.accuracy.K;
+      const kStats = trainer.stateManager.stats.accuracy.K;
       expect(kStats.total).toBe(3);
       expect(kStats.correct).toBe(2);
     });
@@ -470,42 +476,42 @@ describe('MorseTrainer - Integration Tests', () => {
   describe('Skip Word Workflow', () => {
     it('should skip current challenge and generate new one', () => {
       trainer.generateNextChallenge(false);
-      const firstChallenge = trainer.state.currentChallenge;
+      const firstChallenge = trainer.currentChallenge;
       
       const skipBtn = container.querySelector('[data-action="skipWord"]');
       fireEvent.click(skipBtn);
       
       // Should have new challenge (very unlikely to be the same)
-      expect(trainer.state.currentChallenge).toBeTruthy();
-      expect(trainer.state.hasPlayedCurrent).toBe(false);
+      expect(trainer.currentChallenge).toBeTruthy();
+      expect(trainer.hasPlayedCurrent).toBe(false);
     });
 
     it('should stop playback when skipping', () => {
-      trainer.state.currentChallenge = 'TEST';
+      trainer.currentChallenge = 'TEST';
       trainer.playMorse('TEST');
       
-      expect(trainer.state.isPlaying).toBe(true);
+      expect(trainer.audioSynthesizer.isPlaying).toBe(true);
       
       const skipBtn = container.querySelector('[data-action="skipWord"]');
       fireEvent.click(skipBtn);
       
-      expect(trainer.state.isPlaying).toBe(false);
+      expect(trainer.audioSynthesizer.isPlaying).toBe(false);
     });
   });
 
   describe('Complete User Journey', () => {
     it('should support a realistic multi-drill training session', () => {
       // User starts at level 2
-      expect(trainer.state.settings.lessonLevel).toBe(2);
+      expect(trainer.stateManager.settings.lessonLevel).toBe(2);
       
       // Complete 5 drills
       for (let i = 0; i < 5; i++) {
         trainer.generateNextChallenge(false);
-        const challenge = trainer.state.currentChallenge;
+        const challenge = trainer.currentChallenge;
         
         // Simulate playing completed
-        trainer.state.hasPlayedCurrent = true;
-        trainer.state.isPlaying = false;
+        trainer.hasPlayedCurrent = true;
+        trainer.audioSynthesizer.isPlaying = false;
         vi.advanceTimersByTime(100);
         
         // Answer correctly
@@ -514,10 +520,10 @@ describe('MorseTrainer - Integration Tests', () => {
       }
       
       // Should have 5 history entries
-      expect(trainer.state.stats.history.length).toBe(5);
+      expect(trainer.stateManager.stats.history.length).toBe(5);
       
       // All should be correct
-      const allCorrect = trainer.state.stats.history.every(h => h.correct);
+      const allCorrect = trainer.stateManager.stats.history.every(h => h.correct);
       expect(allCorrect).toBe(true);
       
       // Check stats view
@@ -534,9 +540,9 @@ describe('MorseTrainer - Integration Tests', () => {
     it('should preserve training state through navigation', () => {
       // Start training
       trainer.generateNextChallenge(false);
-      trainer.playMorse(trainer.state.currentChallenge);
+      trainer.playMorse(trainer.currentChallenge);
       
-      const currentChallenge = trainer.state.currentChallenge;
+      const currentChallenge = trainer.currentChallenge;
       
       // Navigate to guide
       const guideTab = container.querySelector('[data-action="tab:guide"]');
@@ -547,7 +553,7 @@ describe('MorseTrainer - Integration Tests', () => {
       fireEvent.click(trainTab);
       
       // State should be preserved
-      expect(trainer.state.currentChallenge).toBe(currentChallenge);
+      expect(trainer.currentChallenge).toBe(currentChallenge);
     });
   });
 
@@ -561,12 +567,12 @@ describe('MorseTrainer - Integration Tests', () => {
       }
       
       // Should not crash and should be in valid state
-      expect(trainer.state.isPlaying).toBeDefined();
+      expect(trainer.audioSynthesizer.isPlaying).toBeDefined();
     });
 
     it('should handle empty input submission', () => {
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.hasPlayedCurrent = true;
+      trainer.currentChallenge = 'TEST';
+      trainer.hasPlayedCurrent = true;
       trainer.dom.inputs.user.value = '';
       
       trainer.checkAnswer();
@@ -576,8 +582,8 @@ describe('MorseTrainer - Integration Tests', () => {
     });
 
     it('should handle whitespace-only input', () => {
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.hasPlayedCurrent = true;
+      trainer.currentChallenge = 'TEST';
+      trainer.hasPlayedCurrent = true;
       trainer.dom.inputs.user.value = '   ';
       
       trainer.checkAnswer();
@@ -586,23 +592,23 @@ describe('MorseTrainer - Integration Tests', () => {
     });
 
     it('should prevent level from going negative', () => {
-      trainer.state.settings.lessonLevel = 2;
+      trainer.stateManager.settings.lessonLevel = 2;
       
       for (let i = 0; i < 10; i++) {
         trainer.changeLevel(-1);
       }
       
-      expect(trainer.state.settings.lessonLevel).toBe(2);
+      expect(trainer.stateManager.settings.lessonLevel).toBe(2);
     });
 
     it('should prevent level from exceeding max', () => {
-      trainer.state.settings.lessonLevel = 39;
+      trainer.stateManager.settings.lessonLevel = 39;
       
       for (let i = 0; i < 10; i++) {
         trainer.changeLevel(1);
       }
       
-      expect(trainer.state.settings.lessonLevel).toBeLessThanOrEqual(40);
+      expect(trainer.stateManager.settings.lessonLevel).toBeLessThanOrEqual(40);
     });
   });
 });

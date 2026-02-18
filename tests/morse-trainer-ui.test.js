@@ -100,7 +100,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
       expect(trainer.dom.views.train.classList.contains('hidden')).toBe(true);
       expect(trainer.dom.views.stats.classList.contains('hidden')).toBe(false);
       expect(trainer.dom.views.guide.classList.contains('hidden')).toBe(true);
-      expect(trainer.state.activeTab).toBe('stats');
+      expect(trainer.activeTab).toBe('stats');
     });
 
     it('should switch to guide view when guide tab clicked', () => {
@@ -110,7 +110,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
       expect(trainer.dom.views.train.classList.contains('hidden')).toBe(true);
       expect(trainer.dom.views.stats.classList.contains('hidden')).toBe(true);
       expect(trainer.dom.views.guide.classList.contains('hidden')).toBe(false);
-      expect(trainer.state.activeTab).toBe('guide');
+      expect(trainer.activeTab).toBe('guide');
     });
 
     it('should add active class to current tab button', () => {
@@ -126,12 +126,12 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should generate first challenge when switching to train view', () => {
-      trainer.state.currentChallenge = '';
+      trainer.currentChallenge = '';
       
       const trainTab = container.querySelector('[data-action="tab:train"]');
       fireEvent.click(trainTab);
       
-      expect(trainer.state.currentChallenge).toBeTruthy();
+      expect(trainer.currentChallenge).toBeTruthy();
     });
   });
 
@@ -184,7 +184,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should change to stop icon when playing', () => {
-      trainer.state.isPlaying = true;
+      trainer.audioSynthesizer.isPlaying = true;
       trainer.renderPlayButton();
       
       expect(trainer.dom.displays.playBtn.innerHTML).toContain('rect'); // Stop icon is a rect
@@ -192,17 +192,17 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should add stop class when playing', () => {
-      trainer.state.isPlaying = true;
+      trainer.audioSynthesizer.isPlaying = true;
       trainer.renderPlayButton();
       
       expect(trainer.dom.displays.playBtn.classList.contains('stop')).toBe(true);
     });
 
     it('should revert to play icon when stopped', () => {
-      trainer.state.isPlaying = true;
+      trainer.audioSynthesizer.isPlaying = true;
       trainer.renderPlayButton();
       
-      trainer.state.isPlaying = false;
+      trainer.audioSynthesizer.isPlaying = false;
       trainer.renderPlayButton();
       
       expect(trainer.dom.displays.playBtn.classList.contains('play')).toBe(true);
@@ -211,34 +211,34 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
 
   describe('Submit Button State', () => {
     it('should be disabled when no challenge exists', () => {
-      trainer.state.currentChallenge = '';
+      trainer.currentChallenge = '';
       trainer.renderSubmitButton();
       
       expect(trainer.dom.displays.submitBtn.disabled).toBe(true);
     });
 
     it('should be disabled when playing', () => {
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.isPlaying = true;
-      trainer.state.hasPlayedCurrent = true;
+      trainer.currentChallenge = 'TEST';
+      trainer.audioSynthesizer.isPlaying = true;
+      trainer.hasPlayedCurrent = true;
       trainer.renderSubmitButton();
       
       expect(trainer.dom.displays.submitBtn.disabled).toBe(true);
     });
 
     it('should be disabled when challenge not played yet', () => {
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.isPlaying = false;
-      trainer.state.hasPlayedCurrent = false;
+      trainer.currentChallenge = 'TEST';
+      trainer.audioSynthesizer.isPlaying = false;
+      trainer.hasPlayedCurrent = false;
       trainer.renderSubmitButton();
       
       expect(trainer.dom.displays.submitBtn.disabled).toBe(true);
     });
 
     it('should be enabled when challenge played and not playing', () => {
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.isPlaying = false;
-      trainer.state.hasPlayedCurrent = true;
+      trainer.currentChallenge = 'TEST';
+      trainer.audioSynthesizer.isPlaying = false;
+      trainer.hasPlayedCurrent = true;
       trainer.renderSubmitButton();
       
       expect(trainer.dom.displays.submitBtn.disabled).toBe(false);
@@ -254,8 +254,8 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should mark unlocked characters', () => {
-      trainer.state.settings.lessonLevel = 5;
-      trainer.state.settings.manualChars = [];
+      trainer.stateManager.settings.lessonLevel = 5;
+      trainer.stateManager.settings.manualChars = [];
       trainer.renderKochGrid();
       
       const unlockedBtns = container.querySelectorAll('.mt-koch-btn.unlocked');
@@ -263,8 +263,8 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should mark manually selected characters', () => {
-      trainer.state.settings.lessonLevel = 2;
-      trainer.state.settings.manualChars = ['X', 'Y'];
+      trainer.stateManager.settings.lessonLevel = 2;
+      trainer.stateManager.settings.manualChars = ['X', 'Y'];
       trainer.renderKochGrid();
       
       const manualBtns = container.querySelectorAll('.mt-koch-btn.manual');
@@ -272,7 +272,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should update level badge', () => {
-      trainer.state.settings.lessonLevel = 7;
+      trainer.stateManager.settings.lessonLevel = 7;
       trainer.renderKochGrid();
       
       const badge = container.querySelector('#level-badge');
@@ -289,7 +289,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
 
   describe('Settings Rendering', () => {
     it('should display current WPM setting', () => {
-      trainer.state.settings.wpm = 25;
+      trainer.stateManager.settings.wpm = 25;
       trainer.renderSettings();
       
       const display = container.querySelector('#display-wpm');
@@ -297,7 +297,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should display current Farnsworth setting', () => {
-      trainer.state.settings.farnsworthWpm = 15;
+      trainer.stateManager.settings.farnsworthWpm = 15;
       trainer.renderSettings();
       
       const display = container.querySelector('#display-farnsworth');
@@ -305,7 +305,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should display current frequency setting', () => {
-      trainer.state.settings.frequency = 800;
+      trainer.stateManager.settings.frequency = 800;
       trainer.renderSettings();
       
       const display = container.querySelector('#display-frequency');
@@ -313,9 +313,9 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should sync input values with settings', () => {
-      trainer.state.settings.wpm = 30;
-      trainer.state.settings.farnsworthWpm = 20;
-      trainer.state.settings.frequency = 900;
+      trainer.stateManager.settings.wpm = 30;
+      trainer.stateManager.settings.farnsworthWpm = 20;
+      trainer.stateManager.settings.frequency = 900;
       trainer.renderSettings();
       
       expect(trainer.dom.inputs.wpm.value).toBe('30');
@@ -324,7 +324,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should display AI status badge for cloud API', () => {
-      trainer.state.settings.apiKey = 'test-key';
+      trainer.stateManager.settings.apiKey = 'test-key';
       trainer.renderSettings();
       
       const badge = container.querySelector('#ai-status-badge');
@@ -332,8 +332,8 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should display AI status badge for browser AI', () => {
-      trainer.state.settings.apiKey = '';
-      trainer.state.hasBrowserAI = true;
+      trainer.stateManager.settings.apiKey = '';
+      trainer.aiOperations.hasBrowserAI = true;
       trainer.renderSettings();
       
       const badge = container.querySelector('#ai-status-badge');
@@ -341,8 +341,8 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should display AI status badge for offline mode', () => {
-      trainer.state.settings.apiKey = '';
-      trainer.state.hasBrowserAI = false;
+      trainer.stateManager.settings.apiKey = '';
+      trainer.aiOperations.hasBrowserAI = false;
       trainer.renderSettings();
       
       const badge = container.querySelector('#ai-status-badge');
@@ -352,7 +352,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
 
   describe('Stats Rendering', () => {
     it('should display accuracy percentage', () => {
-      trainer.state.stats.accuracy = {
+      trainer.stateManager.stats.accuracy = {
         'A': { correct: 8, total: 10 },
         'B': { correct: 7, total: 10 },
       };
@@ -363,7 +363,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should display 0% when no attempts', () => {
-      trainer.state.stats.accuracy = {};
+      trainer.stateManager.stats.accuracy = {};
       trainer.renderStats();
       
       const accuracyDiv = container.querySelector('#stat-accuracy');
@@ -371,7 +371,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should display total drills count', () => {
-      trainer.state.stats.history = [
+      trainer.stateManager.stats.history = [
         { challenge: 'A', correct: true },
         { challenge: 'B', correct: false },
         { challenge: 'C', correct: true },
@@ -383,7 +383,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should render history list with recent entries', () => {
-      trainer.state.stats.history = [
+      trainer.stateManager.stats.history = [
         { challenge: 'TEST1', input: 'TEST1', correct: true, timestamp: Date.now() - 30000 },
         { challenge: 'TEST2', input: 'WRONG', correct: false, timestamp: Date.now() - 60000 },
       ];
@@ -394,7 +394,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should limit history display to 20 items', () => {
-      trainer.state.stats.history = new Array(50).fill(null).map((_, i) => ({
+      trainer.stateManager.stats.history = new Array(50).fill(null).map((_, i) => ({
         challenge: `TEST${i}`,
         correct: true,
         timestamp: Date.now(),
@@ -406,7 +406,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should show success/error styling for history items', () => {
-      trainer.state.stats.history = [
+      trainer.stateManager.stats.history = [
         { challenge: 'A', correct: true, timestamp: Date.now() },
         { challenge: 'B', correct: false, timestamp: Date.now() },
       ];
@@ -451,9 +451,9 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
   describe('Event Handling - Click Events', () => {
     beforeEach(() => {
       vi.useFakeTimers();
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.hasPlayedCurrent = true;
-      trainer.state.isPlaying = false;
+      trainer.currentChallenge = 'TEST';
+      trainer.hasPlayedCurrent = true;
+      trainer.audioSynthesizer.isPlaying = false;
     });
 
     afterEach(() => {
@@ -535,9 +535,9 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
   describe('Event Handling - Keyboard Events', () => {
     beforeEach(() => {
       vi.useFakeTimers();
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.hasPlayedCurrent = true;
-      trainer.state.isPlaying = false;
+      trainer.currentChallenge = 'TEST';
+      trainer.hasPlayedCurrent = true;
+      trainer.audioSynthesizer.isPlaying = false;
     });
 
     afterEach(() => {
@@ -575,7 +575,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
 
     it('should stop playback on Escape key', () => {
       const stopSpy = vi.spyOn(trainer, 'stopPlayback');
-      trainer.state.isPlaying = true;
+      trainer.audioSynthesizer.isPlaying = true;
       
       fireEvent.keyDown(document, { key: 'Escape' });
       
@@ -638,9 +638,9 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
 
   describe('Feedback Display', () => {
     beforeEach(() => {
-      trainer.state.currentChallenge = 'TEST';
-      trainer.state.hasPlayedCurrent = true;
-      trainer.state.isPlaying = false;
+      trainer.currentChallenge = 'TEST';
+      trainer.hasPlayedCurrent = true;
+      trainer.audioSynthesizer.isPlaying = false;
     });
 
     it('should show success feedback on correct answer', () => {
@@ -674,8 +674,8 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
   describe('AI Tip Display', () => {
     beforeEach(() => {
       vi.useFakeTimers();
-      trainer.state.settings.apiKey = '';
-      trainer.state.hasBrowserAI = false;
+      trainer.stateManager.settings.apiKey = '';
+      trainer.aiOperations.hasBrowserAI = false;
     });
 
     afterEach(() => {
@@ -690,7 +690,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     });
 
     it('should show AI tip after coach drill', async () => {
-      trainer.state.stats.accuracy = {
+      trainer.stateManager.stats.accuracy = {
         'T': { correct: 2, total: 10 },
       };
       
@@ -704,17 +704,17 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
 
   describe('Auto-Play Checkbox', () => {
     it('should be checked when autoPlay is true', () => {
-      trainer.state.settings.autoPlay = true;
+      trainer.stateManager.settings.autoPlay = true;
       const toggle = container.querySelector('#autoplay-toggle');
-      toggle.checked = trainer.state.settings.autoPlay;
+      toggle.checked = trainer.stateManager.settings.autoPlay;
       
       expect(toggle.checked).toBe(true);
     });
 
     it('should be unchecked when autoPlay is false', () => {
-      trainer.state.settings.autoPlay = false;
+      trainer.stateManager.settings.autoPlay = false;
       const toggle = container.querySelector('#autoplay-toggle');
-      toggle.checked = trainer.state.settings.autoPlay;
+      toggle.checked = trainer.stateManager.settings.autoPlay;
       
       expect(toggle.checked).toBe(false);
     });
@@ -722,8 +722,8 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
 
   describe('Responsive UI Updates', () => {
     it('should update all displays after settings change', () => {
-      trainer.state.settings.wpm = 40;
-      trainer.state.settings.frequency = 1000;
+      trainer.stateManager.settings.wpm = 40;
+      trainer.stateManager.settings.frequency = 1000;
       trainer.renderSettings();
       
       expect(container.querySelector('#display-wpm').textContent).toBe('40 WPM');
