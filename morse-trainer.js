@@ -103,6 +103,7 @@ export class MorseTrainer {
                 user: this.container.querySelector('#user-input'),
                 wpm: this.container.querySelector('#input-wpm'),
                 farnsworth: this.container.querySelector('#input-farnsworth'),
+                frequency: this.container.querySelector('#input-frequency'),
                 apiKey: this.container.querySelector('#input-api-key')
             },
             displays: {
@@ -282,6 +283,10 @@ export class MorseTrainer {
                                 <label>Effective Speed <span id="display-farnsworth">12 WPM</span></label>
                                 <input type="range" id="input-farnsworth" min="5" max="45" data-action="setting:farnsworth">
                             </div>
+                            <div class="mt-form-group">
+                                <label>Tone Frequency <span id="display-frequency">600 Hz</span></label>
+                                <input type="range" id="input-frequency" min="300" max="1200" step="50" data-action="setting:frequency">
+                            </div>
                             <div class="mt-form-group border-top">
                                 <label>Gemini API Key (Optional)</label>
                                 <input type="password" id="input-api-key" class="mt-input" placeholder="Enter key..." data-action="setting:apiKey">
@@ -398,7 +403,18 @@ export class MorseTrainer {
 
         // Inputs
         this.dom.inputs.user.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') this.checkAnswer();
+            if (e.key === 'Enter') {
+                const isEmpty = !this.dom.inputs.user.value.trim();
+                if (isEmpty) this.togglePlay();
+                else this.checkAnswer();
+            }
+            if (e.code === 'Space') {
+                const isEmpty = !this.dom.inputs.user.value.trim();
+                if (isEmpty) {
+                    e.preventDefault();
+                    this.togglePlay();
+                }
+            }
         });
 
         // Settings Inputs
@@ -412,6 +428,7 @@ export class MorseTrainer {
         };
         bindSetting(this.dom.inputs.wpm, 'wpm');
         bindSetting(this.dom.inputs.farnsworth, 'farnsworth');
+        bindSetting(this.dom.inputs.frequency, 'frequency');
         bindSetting(this.dom.inputs.apiKey, 'apiKey');
         bindSetting(this.container.querySelector('#autoplay-toggle'), 'autoPlay');
 
@@ -599,7 +616,7 @@ export class MorseTrainer {
     }
 
     checkAnswer() {
-        if (!this.state.currentChallenge || this.state.isPlaying) return;
+        if (!this.state.currentChallenge || this.state.isPlaying || !this.state.hasPlayedCurrent) return;
         
         const guess = this.dom.inputs.user.value.toUpperCase().trim();
         const correct = this.state.currentChallenge.toUpperCase();
@@ -788,8 +805,10 @@ export class MorseTrainer {
         const s = this.state.settings;
         this.container.querySelector('#display-wpm').textContent = s.wpm + " WPM";
         this.container.querySelector('#display-farnsworth').textContent = s.farnsworthWpm + " WPM";
+        this.container.querySelector('#display-frequency').textContent = s.frequency + " Hz";
         this.dom.inputs.wpm.value = s.wpm;
         this.dom.inputs.farnsworth.value = s.farnsworthWpm;
+        this.dom.inputs.frequency.value = s.frequency;
         this.dom.inputs.apiKey.value = s.apiKey;
         
         const badge = this.container.querySelector('#ai-status-badge');
@@ -831,18 +850,15 @@ export class MorseTrainer {
         grid.innerHTML = '';
         KOCH_SEQUENCE.forEach((char, idx) => {
             const btn = document.createElement('button');
-            btn.className = 'mt-koch-btn';
+            btn.className = 'mt-char-box mt-koch-btn';
             btn.textContent = char;
             btn.dataset.char = char;
 
-            const isLocked = idx < lvlIdx;
+            const isInLevel = idx < lvlIdx;
             const isManual = manual.includes(char);
-            const isUnlocked = idx < lvlIdx || isManual;
 
-            if (isLocked) btn.classList.add('locked');
-            else if (isUnlocked && !isManual) btn.classList.add('active');
+            if (isInLevel && !isManual) btn.classList.add('unlocked');
             else if (isManual) btn.classList.add('manual');
-            else btn.classList.add('disabled');
 
             grid.appendChild(btn);
         });
@@ -855,12 +871,35 @@ export class MorseTrainer {
         const abbrGrid = this.container.querySelector('#abbr-grid');
 
         if (roadmapList) {
+            const chunks = [
+                { end: 5, description: "Foundational" },
+                { end: 12, description: "Vowels & High Freq" },
+                { end: 18, description: "Punctuation & Numbers" },
+                { end: 26, description: "Q-Codes" },
+                { end: 40, description: "Advanced" }
+            ];
+
+            let startIdx = 0;
             roadmapList.innerHTML = '';
-            KOCH_SEQUENCE.forEach((char, idx) => {
-                const item = document.createElement('div');
-                item.className = 'mt-guide-item';
-                item.innerHTML = `<span class="mt-guide-num">${idx + 1}</span> <strong>${char}</strong>`;
-                roadmapList.appendChild(item);
+            
+            chunks.forEach(chunk => {
+                const endIdx = Math.min(chunk.end, KOCH_SEQUENCE.length);
+                const chars = KOCH_SEQUENCE.slice(startIdx, endIdx).join(' ');
+                const levelLabel = `Level ${startIdx + 1}-${endIdx}`;
+                
+                if (chars) {
+                    const item = document.createElement('div');
+                    item.className = 'mt-roadmap-chunk';
+                    item.innerHTML = `
+                        <div class="mt-roadmap-label">${levelLabel}</div>
+                        <div class="mt-roadmap-content">
+                            <div class="mt-roadmap-chars">${chars}</div>
+                            <div class="mt-roadmap-desc">${chunk.description}</div>
+                        </div>
+                    `;
+                    roadmapList.appendChild(item);
+                }
+                startIdx = endIdx;
             });
         }
 
