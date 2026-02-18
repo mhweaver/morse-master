@@ -8,13 +8,45 @@
     <!-- 1. Include the CSS -->
     <link rel="stylesheet" href="morse-trainer.css">
     
-    <!-- Optional: Overrides for embedding (Theming) -->
+    <!-- 2. Optional: Custom Theme (See THEMING.md for complete documentation) -->
     <style>
+        /* 
+         * Morse Master Theming Example
+         * Override CSS variables to customize the appearance.
+         * See THEMING.md for all available variables and example themes.
+         */
+        
+        :root {
+            /* Uncomment and customize these to create your own theme */
+            
+            /* Primary brand color */
+            /* --mt-primary: #0ea5e9; */
+            /* --mt-primary-hover: #0284c7; */
+            
+            /* Background colors */
+            /* --mt-bg: #f0f9ff; */
+            /* --mt-surface: #ffffff; */
+            
+            /* Text colors */
+            /* --mt-text-main: #0f172a; */
+            /* --mt-text-muted: #64748b; */
+            
+            /* Status colors */
+            /* --mt-success: #10b981; */
+            /* --mt-error: #f43f5e; */
+            
+            /* Typography */
+            /* --mt-font: 'Inter', system-ui, sans-serif; */
+            
+            /* Border radius (0 for sharp corners, 1rem for rounded) */
+            /* --mt-radius: 1rem; */
+        }
+        
         /* Example: Setting the background of the host page */
         body { 
             margin: 0; 
-            background: #f0fdf4; /* Light green background to show embedding */
-            font-family: system-ui, -apple-system, sans-serif;
+            background: var(--mt-bg, #f8fafc);
+            font-family: var(--mt-font, system-ui, -apple-system, sans-serif);
         }
         
         /* Container for the app */

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Morse Master - Theme Examples</title>
+    
+    <link rel="stylesheet" href="morse-trainer.css">
+    
+    <style>
+        /* Page layout styles */
+        * { box-sizing: border-box; }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f3f4f6;
+        }
+        
+        .page-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+        
+        .page-header h1 {
+            margin: 0 0 0.5rem 0;
+            font-size: 2.5rem;
+        }
+        
+        .page-header p {
+            margin: 0;
+            font-size: 1.125rem;
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 90rem;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .theme-showcase {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 3rem;
+            margin-bottom: 2rem;
+        }
+        
+        @media (min-width: 1400px) {
+            .theme-showcase {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        .theme-example {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        .theme-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        .theme-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #111827;
+        }
+        
+        .theme-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            background: #e0e7ff;
+            color: #4f46e5;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .theme-container {
+            /* Each theme container will have its own CSS variables */
+            min-height: 600px;
+        }
+        
+        /* Default Theme */
+        #theme-default {
+            /* Uses default CSS variables from morse-trainer.css */
+        }
+        
+        /* Dark Theme */
+        #theme-dark {
+            --mt-primary: #6366f1;
+            --mt-primary-hover: #4f46e5;
+            --mt-primary-light: #312e81;
+            --mt-primary-lighter: #4338ca;
+            --mt-primary-dark: #818cf8;
+            --mt-primary-darker: #6366f1;
+            --mt-bg: #0f172a;
+            --mt-surface: #1e293b;
+            --mt-surface-dark: #0f172a;
+            --mt-surface-darker: #020617;
+            --mt-text-main: #f1f5f9;
+            --mt-text-muted: #94a3b8;
+            --mt-text-light: #64748b;
+            --mt-text-lighter: #475569;
+            --mt-secondary: #334155;
+            --mt-secondary-hover: #475569;
+            --mt-border: #334155;
+            --mt-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+            --mt-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4);
+            --mt-success: #34d399;
+            --mt-success-bg: #064e3b;
+            --mt-success-light: #065f46;
+            --mt-error: #f87171;
+            --mt-error-bg: #7f1d1d;
+            --mt-error-light: #991b1b;
+            --mt-info-bg: #312e81;
+        }
+        
+        /* Ocean Theme */
+        #theme-ocean {
+            --mt-primary: #0891b2;
+            --mt-primary-hover: #0e7490;
+            --mt-primary-light: #cffafe;
+            --mt-primary-lighter: #a5f3fc;
+            --mt-primary-dark: #164e63;
+            --mt-primary-darker: #155e75;
+            --mt-bg: #ecfeff;
+            --mt-surface: #ffffff;
+            --mt-secondary: #e0f2fe;
+            --mt-secondary-hover: #bae6fd;
+            --mt-success: #14b8a6;
+            --mt-success-bg: #ccfbf1;
+            --mt-info-bg: #cffafe;
+            --mt-info-border: #a5f3fc;
+        }
+        
+        /* Sunset Theme */
+        #theme-sunset {
+            --mt-primary: #f97316;
+            --mt-primary-hover: #ea580c;
+            --mt-primary-light: #fed7aa;
+            --mt-primary-lighter: #fdba74;
+            --mt-primary-dark: #9a3412;
+            --mt-primary-darker: #7c2d12;
+            --mt-bg: #fff7ed;
+            --mt-surface: #ffffff;
+            --mt-secondary: #ffedd5;
+            --mt-secondary-hover: #fed7aa;
+            --mt-success: #84cc16;
+            --mt-success-bg: #ecfccb;
+            --mt-info: #f97316;
+            --mt-info-bg: #fed7aa;
+            --mt-info-border: #fdba74;
+        }
+        
+        /* Forest Theme */
+        #theme-forest {
+            --mt-primary: #22c55e;
+            --mt-primary-hover: #16a34a;
+            --mt-primary-light: #dcfce7;
+            --mt-primary-lighter: #bbf7d0;
+            --mt-primary-dark: #14532d;
+            --mt-primary-darker: #166534;
+            --mt-bg: #f0fdf4;
+            --mt-surface: #ffffff;
+            --mt-secondary: #dcfce7;
+            --mt-secondary-hover: #bbf7d0;
+            --mt-success: #10b981;
+            --mt-success-bg: #d1fae5;
+            --mt-info: #22c55e;
+            --mt-info-bg: #dcfce7;
+            --mt-info-border: #bbf7d0;
+            --mt-warning: #eab308;
+        }
+        
+        /* Purple Theme */
+        #theme-purple {
+            --mt-primary: #a855f7;
+            --mt-primary-hover: #9333ea;
+            --mt-primary-light: #f3e8ff;
+            --mt-primary-lighter: #e9d5ff;
+            --mt-primary-dark: #581c87;
+            --mt-primary-darker: #6b21a8;
+            --mt-bg: #faf5ff;
+            --mt-surface: #ffffff;
+            --mt-secondary: #f3e8ff;
+            --mt-secondary-hover: #e9d5ff;
+            --mt-success: #22c55e;
+            --mt-success-bg: #dcfce7;
+            --mt-info: #a855f7;
+            --mt-info-bg: #f3e8ff;
+            --mt-info-border: #e9d5ff;
+        }
+        
+        /* Minimal Theme */
+        #theme-minimal {
+            --mt-primary: #000000;
+            --mt-primary-hover: #1f2937;
+            --mt-primary-light: #f3f4f6;
+            --mt-primary-lighter: #e5e7eb;
+            --mt-primary-dark: #000000;
+            --mt-primary-darker: #111827;
+            --mt-bg: #ffffff;
+            --mt-surface: #ffffff;
+            --mt-secondary: #f9fafb;
+            --mt-secondary-hover: #f3f4f6;
+            --mt-text-main: #000000;
+            --mt-text-muted: #6b7280;
+            --mt-border: #d1d5db;
+            --mt-success: #059669;
+            --mt-error: #dc2626;
+        }
+        
+        .instructions {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+        
+        .instructions h2 {
+            margin-top: 0;
+            color: #111827;
+        }
+        
+        .instructions p {
+            color: #6b7280;
+            line-height: 1.7;
+        }
+        
+        .instructions code {
+            background: #f3f4f6;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-family: ui-monospace, monospace;
+            font-size: 0.875em;
+            color: #dc2626;
+        }
+        
+        .instructions a {
+            color: #4f46e5;
+            text-decoration: underline;
+            font-weight: 600;
+        }
+        
+        .instructions a:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-header">
+        <h1>🎨 Morse Master Theme Gallery</h1>
+        <p>Explore different theme variations and see how easy it is to customize</p>
+    </div>
+    
+    <div class="container">
+        <div class="instructions">
+            <h2>How to Use These Themes</h2>
+            <p>
+                Each theme below is created by simply overriding CSS variables in a container element. 
+                Copy the CSS from any theme and paste it into your own <code>&lt;style&gt;</code> tag 
+                to apply it to your embedded Morse Master instance.
+            </p>
+            <p>
+                For complete documentation, examples, and a full list of all 60+ customizable variables, 
+                see <a href="THEMING.md" target="_blank">THEMING.md</a>.
+            </p>
+        </div>
+        
+        <div class="theme-showcase">
+            <!-- Default Theme -->
+            <div class="theme-example">
+                <div class="theme-header">
+                    <span class="theme-name">Default</span>
+                    <span class="theme-badge">Original</span>
+                </div>
+                <div id="theme-default" class="theme-container"></div>
+            </div>
+            
+            <!-- Dark Theme -->
+            <div class="theme-example">
+                <div class="theme-header">
+                    <span class="theme-name">Dark Mode</span>
+                    <span class="theme-badge">Popular</span>
+                </div>
+                <div id="theme-dark" class="theme-container"></div>
+            </div>
+            
+            <!-- Ocean Theme -->
+            <div class="theme-example">
+                <div class="theme-header">
+                    <span class="theme-name">Ocean</span>
+                    <span class="theme-badge">Cool</span>
+                </div>
+                <div id="theme-ocean" class="theme-container"></div>
+            </div>
+            
+            <!-- Sunset Theme -->
+            <div class="theme-example">
+                <div class="theme-header">
+                    <span class="theme-name">Sunset</span>
+                    <span class="theme-badge">Warm</span>
+                </div>
+                <div id="theme-sunset" class="theme-container"></div>
+            </div>
+            
+            <!-- Forest Theme -->
+            <div class="theme-example">
+                <div class="theme-header">
+                    <span class="theme-name">Forest</span>
+                    <span class="theme-badge">Nature</span>
+                </div>
+                <div id="theme-forest" class="theme-container"></div>
+            </div>
+            
+            <!-- Purple Theme -->
+            <div class="theme-example">
+                <div class="theme-header">
+                    <span class="theme-name">Royal Purple</span>
+                    <span class="theme-badge">Elegant</span>
+                </div>
+                <div id="theme-purple" class="theme-container"></div>
+            </div>
+            
+            <!-- Minimal Theme -->
+            <div class="theme-example" style="grid-column: 1 / -1;">
+                <div class="theme-header">
+                    <span class="theme-name">Minimal</span>
+                    <span class="theme-badge">High Contrast</span>
+                </div>
+                <div id="theme-minimal" class="theme-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+        import { MorseTrainer } from './morse-trainer.js';
+        
+        // Initialize a trainer in each themed container
+        const themes = [
+            'default',
+            'dark',
+            'ocean',
+            'sunset',
+            'forest',
+            'purple',
+            'minimal'
+        ];
+        
+        themes.forEach(themeName => {
+            const container = document.getElementById(`theme-${themeName}`);
+            if (container) {
+                new MorseTrainer(container);
+            }
+        });
+    </script>
+</body>
+</html>

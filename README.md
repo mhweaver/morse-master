@@ -32,6 +32,8 @@ Because this project uses ES Modules (`import/export`), it must be run via a loc
 * `morse-trainer.js`: The core logic class. Zero external dependencies.
 * `morse-trainer.css`: All styling, scoped with CSS variables for easy theming.
 * `start_server.sh`: A simple Python-based HTTP server for local testing.
+* `THEMING.md`: Complete theming documentation with examples and all CSS variables.
+* `THEMES_EXAMPLES.html`: Live gallery showcasing 7 different theme variations.
 
 ## Deployment & Embedding
 
@@ -64,6 +66,64 @@ Add the CSS link and a container `div` where you want the app to appear:
         new MorseTrainer(container);
     </script>
 </body>
+```
+
+## Theming & Customization
+
+Morse Master is **fully themable** using CSS custom properties (CSS variables). You can customize colors, fonts, spacing, shadows, and more without modifying the core CSS file.
+
+### Quick Theme Example
+
+```html
+<style>
+    :root {
+        /* Change primary color to ocean blue */
+        --mt-primary: #0891b2;
+        --mt-primary-hover: #0e7490;
+        
+        /* Light blue background */
+        --mt-bg: #ecfeff;
+        
+        /* Custom font */
+        --mt-font: 'Inter', system-ui, sans-serif;
+    }
+</style>
+```
+
+### Available Themes
+
+The theming system includes **60+ CSS variables** controlling:
+
+- **Colors**: Primary, secondary, backgrounds, text, status colors (success/error/info)
+- **Typography**: Font families (sans-serif and monospace)
+- **Spacing**: Border radius, shadows, transitions
+- **Accents**: Cyan, indigo, sky blue, warning colors
+
+### Complete Documentation
+
+See **[THEMING.md](THEMING.md)** for:
+- Complete list of all CSS variables
+- 6 pre-built example themes (Dark, Ocean, Sunset, Forest, Purple, Minimal)
+- Dark mode auto-detection
+- Advanced customization techniques
+- Accessibility and contrast guidelines
+- Multiple instance theming
+
+### Example: Dark Mode
+
+```html
+<style>
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --mt-primary: #6366f1;
+            --mt-bg: #0f172a;
+            --mt-surface: #1e293b;
+            --mt-text-main: #f1f5f9;
+            --mt-text-muted: #94a3b8;
+            --mt-border: #334155;
+        }
+    }
+</style>
 ```
 
 ## Testing
