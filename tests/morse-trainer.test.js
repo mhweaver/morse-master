@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { MorseTrainer } from '../morse-trainer.js';
+import { MorseTrainer } from '../src/morse-trainer.js';
 
 describe('MorseTrainer - Core Functionality', () => {
   let container;

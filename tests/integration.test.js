@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MorseTrainer } from '../morse-trainer.js';
+import { MorseTrainer } from '../src/morse-trainer.js';
 import { fireEvent, waitFor } from '@testing-library/dom';
 
 describe('MorseTrainer - Integration Tests', () => {
