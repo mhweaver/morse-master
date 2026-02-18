@@ -290,6 +290,7 @@ export class MorseTrainer {
                             <div class="mt-form-group border-top">
                                 <label>Gemini API Key (Optional)</label>
                                 <input type="password" id="input-api-key" class="mt-input" placeholder="Enter key..." data-action="setting:apiKey">
+                                <p class="mt-hint">App will use: Gemini Cloud API → Chrome On-Device AI → Offline Template Engine</p>
                                 <div id="ai-status-badge" class="mt-badge-large">Checking...</div>
                             </div>
                         </div>

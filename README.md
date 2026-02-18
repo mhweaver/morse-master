@@ -9,10 +9,9 @@ This project is designed to be **modular**, **zero-dependency**, and **embeddabl
 * **Adaptive Learning:** Automatically increases difficulty as your accuracy improves.
 * **Koch Method:** Introduces characters in a specific order (K, M, R, S, U...) to maximize rhythmic contrast.
 * **Farnsworth Timing:** Keeps character speed high (e.g., 20 WPM) while slowing down spacing, preventing you from counting dots and dashes.
-* **AI Operations:**
-    * **Intercept Broadcast:** Generates creative practice sentences using Google Gemini.
-    * **Smart Coach:** Analyzes your specific error history to create custom drills for your weak characters.
-    * **Three-Tier Fallback:** Works with Cloud API keys, Chrome's built-in on-device AI, or falls back to a sophisticated offline template engine.
+* **Practice Generators:**
+    * **Intercept Broadcast:** Generates random practice sentences using the currently unlocked characters.
+    * **Smart Coach:** Analyzes your accuracy history and creates drills focusing on weaker characters.
 * **Responsive Design:** Works beautifully on desktop and mobile.
 
 ## Quick Start (Local)
