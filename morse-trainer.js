@@ -388,6 +388,14 @@ export class MorseTrainer {
             if (action === 'level:next') this.changeLevel(1);
         });
 
+        // Koch Grid Button Clicks
+        this.container.addEventListener('click', (e) => {
+            const kochBtn = e.target.closest('.mt-koch-btn');
+            if (kochBtn && kochBtn.dataset.char) {
+                this.toggleChar(kochBtn.dataset.char);
+            }
+        });
+
         // Inputs
         this.dom.inputs.user.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') this.checkAnswer();
@@ -764,6 +772,18 @@ export class MorseTrainer {
         this.saveSettings();
     }
 
+    confirmReset() {
+        this.state.stats = { history: [], accuracy: {} };
+        this.state.settings.lessonLevel = 2;
+        this.state.settings.manualChars = [];
+        this.saveStats();
+        this.saveSettings();
+        this.toggleModal('reset', false);
+        this.renderStats();
+        this.renderKochGrid();
+    }
+
+
     renderSettings() {
         const s = this.state.settings;
         this.container.querySelector('#display-wpm').textContent = s.wpm + " WPM";
@@ -798,5 +818,90 @@ export class MorseTrainer {
         const btn = this.dom.displays.submitBtn;
         const disabled = !this.state.currentChallenge || this.state.isPlaying || !this.state.hasPlayedCurrent;
         btn.disabled = disabled;
+    }
+
+    renderKochGrid() {
+        const grid = this.container.querySelector('#koch-grid');
+        const badge = this.container.querySelector('#level-badge');
+        if (!grid) return;
+
+        const lvlIdx = this.state.settings.lessonLevel;
+        const manual = this.state.settings.manualChars;
+
+        grid.innerHTML = '';
+        KOCH_SEQUENCE.forEach((char, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'mt-koch-btn';
+            btn.textContent = char;
+            btn.dataset.char = char;
+
+            const isLocked = idx < lvlIdx;
+            const isManual = manual.includes(char);
+            const isUnlocked = idx < lvlIdx || isManual;
+
+            if (isLocked) btn.classList.add('locked');
+            else if (isUnlocked && !isManual) btn.classList.add('active');
+            else if (isManual) btn.classList.add('manual');
+            else btn.classList.add('disabled');
+
+            grid.appendChild(btn);
+        });
+
+        if (badge) badge.textContent = `Level ${lvlIdx}`;
+    }
+
+    renderGuide() {
+        const roadmapList = this.container.querySelector('#roadmap-list');
+        const abbrGrid = this.container.querySelector('#abbr-grid');
+
+        if (roadmapList) {
+            roadmapList.innerHTML = '';
+            KOCH_SEQUENCE.forEach((char, idx) => {
+                const item = document.createElement('div');
+                item.className = 'mt-guide-item';
+                item.innerHTML = `<span class="mt-guide-num">${idx + 1}</span> <strong>${char}</strong>`;
+                roadmapList.appendChild(item);
+            });
+        }
+
+        if (abbrGrid) {
+            abbrGrid.innerHTML = '';
+            COMMON_ABBR.forEach(abbr => {
+                const card = document.createElement('div');
+                card.className = 'mt-abbr-card';
+                card.innerHTML = `<div class="mt-abbr-code">${abbr.code}</div> <div class="mt-abbr-meaning">${abbr.meaning}</div>`;
+                abbrGrid.appendChild(card);
+            });
+        }
+    }
+
+    renderStats() {
+        const accuracyDiv = this.container.querySelector('#stat-accuracy');
+        const drillsDiv = this.container.querySelector('#stat-drills');
+        const historyList = this.container.querySelector('#history-list');
+
+        if (accuracyDiv) {
+            const acc = this.state.stats.accuracy;
+            const totalCorrect = Object.values(acc).reduce((sum, d) => sum + d.correct, 0);
+            const totalAttempts = Object.values(acc).reduce((sum, d) => sum + d.total, 0);
+            const pct = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
+            accuracyDiv.textContent = pct + '%';
+        }
+
+        if (drillsDiv) {
+            drillsDiv.textContent = this.state.stats.history.length;
+        }
+
+        if (historyList) {
+            historyList.innerHTML = '';
+            this.state.stats.history.slice(0, 20).forEach((entry, idx) => {
+                const item = document.createElement('div');
+                item.className = 'mt-history-item ' + (entry.correct ? 'success' : 'error');
+                const timeago = Math.round((Date.now() - entry.timestamp) / 1000);
+                const timeStr = timeago < 60 ? timeago + 's' : (Math.round(timeago / 60) + 'm');
+                item.innerHTML = `<span class="mt-history-result">${entry.correct ? '✓' : '✗'}</span> <span class="mt-history-text">${entry.challenge}</span> <span class="mt-history-time">${timeStr} ago</span>`;
+                historyList.appendChild(item);
+            });
+        }
     }
 }

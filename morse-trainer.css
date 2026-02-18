@@ -62,7 +62,7 @@
 .mt-feedback.success { background: var(--mt-success-bg); color: var(--mt-success); border-color: #d1fae5; }
 .mt-feedback.error { background: var(--mt-error-bg); color: var(--mt-error); border-color: #ffe4e6; }
 .mt-feedback.info { background: #e0e7ff; color: var(--mt-primary); border-color: #c7d2fe; }
-.hidden { display: none; }
+.hidden { display: none !important; }
 
 .mt-btn-primary { width: 100%; max-width: 24rem; margin-top: 5rem; background: #0f172a; color: white; padding: 1rem; border-radius: 1rem; font-weight: 700; font-size: 1.125rem; border: none; cursor: pointer; transition: opacity 0.2s; }
 .mt-btn-primary:hover { background: #1e293b; }
@@ -112,7 +112,8 @@
 .mt-history-list .p-4 { padding: 1rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f1f5f9; }
 
 /* Modals */
-.mt-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.mt-modal { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(0, 0, 0, 0.5); }
+.mt-modal.hidden { display: none !important; }
 .mt-modal-content { position: relative; background: var(--mt-surface); width: 100%; max-width: 28rem; border-radius: 2rem; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); overflow: hidden; }
 .mt-modal-header { padding: 1.5rem; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; background: #f8fafc; }
 .mt-modal-body { padding: 2rem; max-height: 70vh; overflow-y: auto; }
