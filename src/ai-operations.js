@@ -196,4 +196,156 @@ export class AIOperations {
       }
     }
   }
+
+  /**
+   * Generate a batch of broadcast challenges
+   * @param {number} batchSize - Number of challenges to generate
+   * @param {Function} onSuccess - Callback with {batch: Array, totalCount: number}
+   * @param {Function} onFallback - Callback for offline fallback
+   * @param {Function} onError - Callback for errors
+   * @public
+   */
+  async generateBroadcastBatch(batchSize, onSuccess, onFallback, onError) {
+    if (!this.stateManager.settings.apiKey && !this.hasBrowserAI) {
+      // Offline fallback
+      setTimeout(() => {
+        const batch = this.contentGenerator.generateBroadcastBatch(
+          batchSize,
+          this.stateManager.settings.lessonLevel,
+          this.stateManager.settings.manualChars
+        );
+        onFallback({ batch, totalCount: batch.length });
+      }, PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
+      return;
+    }
+
+    // Try browser AI - generate multiple challenges
+    if (this.hasBrowserAI) {
+      try {
+        const session = await this.createAISession();
+        const batch = [];
+        
+        for (let i = 0; i < batchSize; i++) {
+          const promptData = this.contentGenerator.getAIBroadcastPrompt(
+            this.stateManager.settings.lessonLevel,
+            this.stateManager.settings.manualChars
+          );
+          const result = await AICallWrapper.callWithTimeout(
+            () => session.prompt(promptData.prompt),
+            10000,
+            `AI Broadcast ${i + 1}/${batchSize}`
+          );
+
+          const validation = this.contentGenerator.validateAIResponse(
+            result,
+            this.stateManager.settings.lessonLevel,
+            this.stateManager.settings.manualChars
+          );
+
+          if (validation.valid) {
+            batch.push({
+              challenge: validation.cleaned,
+              meaning: UI_FEEDBACK.AI_BROADCAST
+            });
+          }
+        }
+
+        session.destroy();
+
+        if (batch.length > 0) {
+          onSuccess({ batch, totalCount: batch.length });
+        } else {
+          throw new Error('No valid AI responses generated');
+        }
+      } catch (error) {
+        console.log('Browser AI broadcast batch failed:', error.message);
+        this.hasBrowserAI = false;
+        // Fallback to offline
+        setTimeout(() => {
+          const batch = this.contentGenerator.generateBroadcastBatch(
+            batchSize,
+            this.stateManager.settings.lessonLevel,
+            this.stateManager.settings.manualChars
+          );
+          onFallback({ batch, totalCount: batch.length });
+        }, PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
+      }
+    }
+  }
+
+  /**
+   * Generate a batch of smart coach challenges
+   * @param {number} batchSize - Number of challenges to generate
+   * @param {Function} onSuccess - Callback with {batch: Array, hasWeakChars: boolean, totalCount: number}
+   * @param {Function} onFallback - Callback for offline fallback
+   * @param {Function} onError - Callback for errors
+   * @public
+   */
+  async generateCoachBatch(batchSize, onSuccess, onFallback, onError) {
+    if (!this.stateManager.settings.apiKey && !this.hasBrowserAI) {
+      // Offline fallback
+      setTimeout(() => {
+        const { batch, hasWeakChars } = this.contentGenerator.generateCoachBatch(
+          batchSize,
+          this.stateManager.settings.lessonLevel,
+          this.stateManager.settings.manualChars
+        );
+        onFallback({ batch, hasWeakChars, totalCount: batch.length });
+      }, PLAYBACK_DELAYS.AI_SIMULATION_DELAY);
+      return;
+    }
+
+    // Try browser AI - generate multiple coach challenges
+    if (this.hasBrowserAI) {
+      try {
+        const promptData = this.contentGenerator.getAICoachPrompt(
+          this.stateManager.settings.lessonLevel,
+          this.stateManager.settings.manualChars
+        );
+        const session = await this.createAISession();
+        const batch = [];
+        
+        for (let i = 0; i < batchSize; i++) {
+          const result = await AICallWrapper.callWithTimeout(
+            () => session.prompt(promptData.prompt),
+            10000,
+            `AI Coach ${i + 1}/${batchSize}`
+          );
+
+          const validation = this.contentGenerator.validateAIResponse(
+            result,
+            this.stateManager.settings.lessonLevel,
+            this.stateManager.settings.manualChars
+          );
+
+          if (validation.valid) {
+            batch.push({
+              challenge: validation.cleaned,
+              meaning: UI_FEEDBACK.AI_COACH
+            });
+          }
+        }
+
+        session.destroy();
+
+        if (batch.length > 0) {
+          onSuccess({ batch, hasWeakChars: promptData.hasWeakChars, totalCount: batch.length });
+        } else {
+          throw new Error('No valid AI coach responses generated');
+        }
+      } catch (error) {
+        console.log('Browser AI coach batch failed:', error.message);
+        this.hasBrowserAI = false;
+        // Fallback to offline
+        setTimeout(() => {
+          const { batch, hasWeakChars } = this.contentGenerator.generateCoachBatch(
+            batchSize,
+            this.stateManager.settings.lessonLevel,
+            this.stateManager.settings.manualChars
+          );
+          onFallback({ batch, hasWeakChars, totalCount: batch.length });
+        }, PLAYBACK_DELAYS.AI_FALLBACK_RETRY);
+      }
+    }
+  }
 }

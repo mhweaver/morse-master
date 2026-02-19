@@ -75,6 +75,11 @@ export class MorseTrainer {
         this.activeTab = 'train';
         this.hasPlayedCurrent = false;
         this.eventListeners = []; // Track listeners for cleanup
+        this.kochLongPressTimers = {}; // Track long-press timers for Koch buttons
+        
+        // Challenge queue for batch generation
+        this.challengeQueue = [];
+        this.isCurrentBatchFromNewLevel = false; // Track if batch was generated before level change
 
         // Create debounced settings save (500ms delay)
         this._debouncedSaveSettings = createDebounced(() => {
@@ -376,15 +381,69 @@ export class MorseTrainer {
 
     // --- Core Logic ---
     bindEvents() {
-        // Single unified click handler with action routing
-        const clickHandler = (e) => {
-            // Handle Koch character buttons
+        // Koch button handlers (mousedown/touchstart for long-press detection)
+        const kochMouseDownHandler = (e) => {
             const kochBtn = e.target.closest('.mt-koch-btn');
-            if (kochBtn && kochBtn.dataset.char) {
-                this.toggleChar(kochBtn.dataset.char);
-                return;
+            if (!kochBtn || !kochBtn.dataset.char) return;
+
+            const char = kochBtn.dataset.char;
+            const longPressDelay = 500; // 500ms for long-press
+
+            // Clear any previous timer for this character
+            if (this.kochLongPressTimers[char]) {
+                clearTimeout(this.kochLongPressTimers[char].timer);
             }
 
+            // Set timer for long-press
+            this.kochLongPressTimers[char] = {
+                timer: setTimeout(() => {
+                    // Long-press: toggle character availability
+                    this.toggleChar(char);
+                    this.kochLongPressTimers[char] = null;
+                }, longPressDelay),
+                isLongPress: false
+            };
+        };
+
+        const kochMouseUpHandler = (e) => {
+            const kochBtn = e.target.closest('.mt-koch-btn');
+            if (!kochBtn || !kochBtn.dataset.char) return;
+
+            const char = kochBtn.dataset.char;
+            const longPressState = this.kochLongPressTimers[char];
+
+            if (longPressState && longPressState.timer) {
+                // Short tap: play the character sound
+                clearTimeout(longPressState.timer);
+                this.playKochCharacter(char);
+                this.kochLongPressTimers[char] = null;
+            }
+        };
+
+        const kochMouseLeaveHandler = (e) => {
+            const kochBtn = e.target.closest('.mt-koch-btn');
+            if (!kochBtn || !kochBtn.dataset.char) return;
+
+            const char = kochBtn.dataset.char;
+            if (this.kochLongPressTimers[char]) {
+                clearTimeout(this.kochLongPressTimers[char].timer);
+                this.kochLongPressTimers[char] = null;
+            }
+        };
+
+        this.container.addEventListener('mousedown', kochMouseDownHandler);
+        this.container.addEventListener('mouseup', kochMouseUpHandler);
+        this.container.addEventListener('mouseleave', kochMouseLeaveHandler);
+        this.container.addEventListener('touchstart', kochMouseDownHandler);
+        this.container.addEventListener('touchend', kochMouseUpHandler);
+        this.eventListeners.push({ element: this.container, event: 'mousedown', handler: kochMouseDownHandler });
+        this.eventListeners.push({ element: this.container, event: 'mouseup', handler: kochMouseUpHandler });
+        this.eventListeners.push({ element: this.container, event: 'mouseleave', handler: kochMouseLeaveHandler });
+        this.eventListeners.push({ element: this.container, event: 'touchstart', handler: kochMouseDownHandler });
+        this.eventListeners.push({ element: this.container, event: 'touchend', handler: kochMouseUpHandler });
+
+        // Single unified click handler with action routing (for non-Koch buttons)
+        const clickHandler = (e) => {
             const trigger = e.target.closest('[data-action]');
             if (!trigger) return;
 
@@ -677,6 +736,7 @@ export class MorseTrainer {
 
     /**
      * Check if accuracy threshold met and adjust lesson level
+     * Discards any existing challenge batch if level changes
      * @private
      */
     checkAutoLevel() {
@@ -691,9 +751,13 @@ export class MorseTrainer {
 
         if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY && 
             this.stateManager.settings.lessonLevel < KOCH_SEQUENCE.length) {
-            this.changeLevel(1);
+            // Discard current batch since level is changing
+            this.challengeQueue = [];
+            this.changeLevel(1, true); // isAutoAdvance = true to play jingle
         } else if (accuracyPercentage < AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY && 
                    this.stateManager.settings.lessonLevel > LEVEL_LIMITS.MIN) {
+            // Discard current batch since level is changing
+            this.challengeQueue = [];
             this.changeLevel(-1);
         }
     }
@@ -717,11 +781,27 @@ export class MorseTrainer {
     }
 
     /**
-     * Change lesson level by delta, respecting bounds and manual overrides
-     * @param {number} delta - Change amount (-1 to decrease, +1 to increase)
+     * Play the morse code for a single character
+     * @param {string} char - Character to play
      * @private
      */
-    changeLevel(delta) {
+    playKochCharacter(char) {
+        this.audioSynthesizer.updateSettings({
+            wpm: this.stateManager.settings.wpm,
+            farnsworthWpm: this.stateManager.settings.farnsworthWpm,
+            frequency: this.stateManager.settings.frequency,
+            volume: this.stateManager.settings.volume
+        });
+        this.playMorse(char);
+    }
+
+    /**
+     * Change lesson level by delta, respecting bounds and manual overrides
+     * @param {number} delta - Change amount (-1 to decrease, +1 to increase)
+     * @param {boolean} isAutoAdvance - Whether this is from automatic level up (plays jingle)
+     * @private
+     */
+    changeLevel(delta, isAutoAdvance = false) {
         let newLevel = this.stateManager.settings.lessonLevel + delta;
         if (delta > 0) {
             while (newLevel < KOCH_SEQUENCE.length) {
@@ -734,85 +814,110 @@ export class MorseTrainer {
             this.stateManager.settings.lessonLevel = newLevel;
             this.stateManager.saveSettings();
             this.renderKochGrid();
+            
+            // Play celebratory jingle on automatic level up
+            if (isAutoAdvance && delta > 0) {
+                this.audioSynthesizer.playJingle();
+            }
         }
     }
 
     // --- AI / Offline Simulation ---
     /**
-     * Generate AI-powered broadcast: Creates realistic sentences from unlocked characters
+     * Generate AI-powered broadcast batch: Creates realistic sentences from unlocked characters
      * Falls back to offline simulation if AI unavailable
+     * Generates multiple challenges at once to reduce API calls
      * @public
      */
     async generateAIBroadcast() {
         this.stopPlayback();
+        this.challengeQueue = []; // Clear old queue
+        this.isCurrentBatchFromNewLevel = false;
+        
         const feedbackElement = this.dom.displays.feedback;
         feedbackElement.classList.remove(CSS_CLASSES.HIDDEN, CSS_CLASSES.ERROR, CSS_CLASSES.SUCCESS);
         feedbackElement.classList.add(CSS_CLASSES.INFO);
         feedbackElement.textContent = UI_FEEDBACK.INTERCEPTING;
 
-        this.aiOperations.generateBroadcast(
+        this.aiOperations.generateBroadcastBatch(
+            CONTENT_GENERATION.BATCH_SIZE,
             (result) => { // onSuccess
-                this.currentChallenge = result.challenge;
-                this.currentMeaning = result.meaning;
-                this.dom.inputs.user.value = '';
-                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-                this.playMorse(this.currentChallenge);
+                this.challengeQueue = result.batch;
+                this.loadNextQueuedChallenge(feedbackElement);
             },
             (result) => { // onFallback
-                this.currentChallenge = result.challenge;
-                this.currentMeaning = result.meaning;
-                this.dom.inputs.user.value = '';
-                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-                this.playMorse(this.currentChallenge);
+                this.challengeQueue = result.batch;
+                this.loadNextQueuedChallenge(feedbackElement);
             },
             (error) => { // onError
-                console.error('AI broadcast failed:', error);
+                console.error('AI broadcast batch failed:', error);
                 feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
             }
         );
     }
 
     /**
-     * Generate AI-powered smart drill: Targets weak characters from accuracy history
+     * Generate AI-powered smart drill batch: Targets weak characters from accuracy history
      * Falls back to offline simulation if AI unavailable
+     * Generates multiple coach challenges at once
      * @public
      */
     async generateAICoach() {
         this.stopPlayback();
+        this.challengeQueue = []; // Clear old queue
+        this.isCurrentBatchFromNewLevel = false;
+        
         const feedbackElement = this.dom.displays.feedback;
         feedbackElement.classList.remove(CSS_CLASSES.HIDDEN);
         feedbackElement.textContent = UI_FEEDBACK.CONSULTING;
 
-        this.aiOperations.generateCoach(
+        this.aiOperations.generateCoachBatch(
+            CONTENT_GENERATION.BATCH_SMART_COACH_SIZE,
             (result) => { // onSuccess
-                this.currentChallenge = result.challenge;
-                this.currentMeaning = result.meaning;
-                this.dom.inputs.user.value = '';
-                this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
-                const tipMessage = result.hasWeakChars
-                    ? UI_FEEDBACK.WEAK_CHARS_MESSAGE
-                    : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
-                this.dom.displays.aiTipText.textContent = tipMessage;
-                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-                this.playMorse(this.currentChallenge);
+                this.challengeQueue = result.batch;
+                this.isCoachBatchHasWeakChars = result.hasWeakChars;
+                this.loadNextQueuedChallenge(feedbackElement, result.hasWeakChars);
             },
             (result) => { // onFallback
-                this.currentChallenge = result.challenge;
-                this.currentMeaning = result.meaning;
-                this.dom.inputs.user.value = '';
-                this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
-                const tipMessage = result.hasWeakChars
-                    ? UI_FEEDBACK.WEAK_CHARS_MESSAGE
-                    : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
-                this.dom.displays.aiTipText.textContent = tipMessage;
-                feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-                this.playMorse(this.currentChallenge);
+                this.challengeQueue = result.batch;
+                this.isCoachBatchHasWeakChars = result.hasWeakChars;
+                this.loadNextQueuedChallenge(feedbackElement, result.hasWeakChars);
             },
             (error) => { // onError
-                console.error('AI coach failed:', error);
+                console.error('AI coach batch failed:', error);
                 feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
             }
         );
+    }
+
+    /**
+     * Load next challenge from queue and play it
+     * @param {HTMLElement} feedbackElement - Element to hide
+     * @param {boolean} hasWeakChars - Whether coach batch has weak chars (optional)
+     * @private
+     */
+    loadNextQueuedChallenge(feedbackElement, hasWeakChars = null) {
+        if (this.challengeQueue.length === 0) {
+            feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
+            return;
+        }
+
+        const challenge = this.challengeQueue.shift();
+        this.currentChallenge = challenge.challenge;
+        this.currentMeaning = challenge.meaning;
+        this.dom.inputs.user.value = '';
+
+        // Show coach tip if applicable
+        if (hasWeakChars !== null) {
+            this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
+            const tipMessage = hasWeakChars
+                ? UI_FEEDBACK.WEAK_CHARS_MESSAGE
+                : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
+            this.dom.displays.aiTipText.textContent = tipMessage;
+        }
+
+        feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+        this.playMorse(this.currentChallenge);
     }
 
     // --- Render Helpers ---

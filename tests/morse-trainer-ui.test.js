@@ -518,7 +518,23 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
       
       const charBtn = container.querySelector('.mt-koch-btn');
       if (charBtn) {
-        fireEvent.click(charBtn);
+        // Simulate tap: mousedown then mouseup before long-press timeout (500ms)
+        fireEvent.mouseDown(charBtn);
+        fireEvent.mouseUp(charBtn);
+        // Small tick to allow timer to clear
+        vi.advanceTimersByTime(100);
+        expect(toggleSpy).not.toHaveBeenCalled(); // Short tap shouldn't call toggleChar
+      }
+    });
+
+    it('should toggle character on long-press of Koch button', () => {
+      const toggleSpy = vi.spyOn(trainer, 'toggleChar');
+      const charBtn = container.querySelector('.mt-koch-btn');
+      if (charBtn) {
+        // Simulate long-press: mousedown and wait 500ms+ before mouseup
+        fireEvent.mouseDown(charBtn);
+        vi.advanceTimersByTime(550); // Advance past 500ms threshold
+        fireEvent.mouseUp(charBtn);
         expect(toggleSpy).toHaveBeenCalled();
       }
     });

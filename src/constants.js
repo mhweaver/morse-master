@@ -90,7 +90,9 @@ export const CONTENT_GENERATION = {
   COACH_DRILL_GROUP_LENGTH: 4,   // characters per group in coach drill
   HISTORY_LIMIT: 100,            // max stored history entries
   HISTORY_DISPLAY_LIMIT: 20,     // max history items shown in UI
-  ACCURACY_PRECISION: 100        // percentage rounding base
+  ACCURACY_PRECISION: 100,       // percentage rounding base
+  BATCH_SIZE: 10,                // number of challenges to generate in a batch
+  BATCH_SMART_COACH_SIZE: 8      // number of smart coach challenges to generate
 };
 
 // --- UI Rendering ---

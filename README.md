@@ -9,9 +9,12 @@ This project is designed to be **modular**, **zero-dependency**, and **embeddabl
 * **Adaptive Learning:** Automatically increases difficulty as your accuracy improves.
 * **Koch Method:** Introduces characters in a specific order (K, M, R, S, U...) to maximize rhythmic contrast.
 * **Farnsworth Timing:** Keeps character speed high (e.g., 20 WPM) while slowing down spacing, preventing you from counting dots and dashes.
+* **Interactive Koch Grid:** 
+    * **Tap** a character button to hear its Morse code
+    * **Long-press** (500ms+) a character to add/remove it from your character set
 * **Practice Generators:**
-    * **Intercept Broadcast:** Generates random practice sentences using the currently unlocked characters.
-    * **Smart Coach:** Analyzes your accuracy history and creates drills focusing on weaker characters.
+    * **Intercept Broadcast:** Generates batches of 10 creative sentences using your unlocked characters
+    * **Smart Coach:** Analyzes your accuracy history and creates batches of 8 drills focusing on weaker characters
 * **Responsive Design:** Works beautifully on desktop and mobile.
 
 ## Quick Start (Local)
@@ -100,7 +103,47 @@ Add the CSS link and a container `div` where you want the app to appear:
 </body>
 ```
 
+## Interactive Koch Grid
+
+The Koch progress grid features interactive character learning:
+
+### Tap to Preview
+- **Short Tap** (< 500ms) on a character button plays its Morse code
+- Useful for learning character pronunciation before adding it to your practice set
+- Uses your current playback settings (WPM, frequency, volume)
+
+### Long-Press to Toggle
+- **Long-Press** (500ms+) on a character button adds or removes it from your character set
+- Gives you manual control over which characters to practice
+- Long-press visual feedback helps distinguish from short tap
+
+## AI-Powered Batch Generation
+
+### Optimized for Cost & Performance
+
+Both AI features now generate batches of challenges to reduce API calls and costs:
+
+- **Intercept Broadcast**: Generates 10 creative sentences per batch (vs. 1 before)
+- **Smart Coach**: Generates 8 targeted drills per batch (vs. 1 before)
+
+This means:
+- **80-90% fewer API calls** to cloud services like Gemini
+- **Sustained practice** without waiting for API responses between challenges
+- **Intelligent fallback**: Offline template engine also generates full batches
+- **Smart level handling**: If you auto-advance mid-batch, the old batch is discarded to show new-level content
+
+### How It Works
+
+1. When you click "Intercept Broadcast" or "Smart Coach", the app generates a batch of challenges
+2. You practice the first challenge from the batch
+3. After checking your answer, the next challenge from the batch is automatically queued
+4. If you level up or down, the remaining batch is discarded (you'll get new-level challenges next)
+5. When the batch is exhausted, a new batch is generated on demand
+
+This architectural improvement significantly reduces AI API usage while improving the learning experience.
+
 ## Theming & Customization
+
 
 Morse Master is **fully themable** using CSS custom properties (CSS variables). You can customize colors, fonts, spacing, shadows, and more without modifying the core CSS file.
 
@@ -183,7 +226,7 @@ npm run test:coverage
 
 ### Test Coverage
 
-The test suite includes **169 tests** covering:
+The test suite includes **170 tests** covering:
 
 - **Core Functionality** - Morse code generation, audio playback, challenge generation, answer validation, statistics tracking
 - **UI Behavior** - DOM rendering, event handlers, tab navigation, modal interactions, keyboard shortcuts

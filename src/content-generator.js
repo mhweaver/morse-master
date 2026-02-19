@@ -229,4 +229,51 @@ export class ContentGenerator {
     }
     return { valid: false };
   }
+
+  /**
+   * Generate a batch of broadcast challenges (for AI batch generation)
+   * @param {number} batchSize - Number of challenges to generate
+   * @param {number} lessonLevel - Current lesson level
+   * @param {string[]} manualChars - Manually unlocked characters
+   * @returns {Object[]} Array of {challenge: string, meaning: string}
+   * @public
+   */
+  generateBroadcastBatch(batchSize, lessonLevel, manualChars = []) {
+    const batch = [];
+    for (let i = 0; i < batchSize; i++) {
+      batch.push(this.generateChallenge(lessonLevel, manualChars));
+    }
+    return batch;
+  }
+
+  /**
+   * Generate a batch of smart coach challenges targeting weak characters
+   * @param {number} batchSize - Number of challenges to generate
+   * @param {number} lessonLevel - Current lesson level
+   * @param {string[]} manualChars - Manually unlocked characters
+   * @returns {Object} {batch: Array, hasWeakChars: boolean}
+   * @public
+   */
+  generateCoachBatch(batchSize, lessonLevel, manualChars = []) {
+    const weakCharacters = getWeakCharacters(this.accuracyData);
+    const hasWeakChars = weakCharacters.length > 0;
+
+    const batch = [];
+    for (let i = 0; i < batchSize; i++) {
+      // Generate challenges even if no weak chars, using all unlocked chars
+      const focusCharacters = hasWeakChars ? weakCharacters : Array.from(this.getUnlockedSet(lessonLevel, manualChars));
+      
+      const groups = [];
+      for (let j = 0; j < CONTENT_GENERATION.COACH_DRILL_GROUPS; j++) {
+        groups.push(generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
+      }
+
+      batch.push({
+        challenge: groups.join(' '),
+        meaning: 'Smart Coach Drill'
+      });
+    }
+
+    return { batch, hasWeakChars };
+  }
 }

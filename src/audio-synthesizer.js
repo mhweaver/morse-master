@@ -130,6 +130,61 @@ export class AudioSynthesizer {
   }
 
   /**
+   * Play a short celebratory jingle (3-note major triad)
+   * Used when user levels up automatically
+   * @param {Function} onComplete - Optional callback when jingle completes
+   * @returns {Promise<void>}
+   * @public
+   */
+  async playJingle(onComplete = null) {
+    if (this.isPlaying) {
+      this.stop();
+      return;
+    }
+
+    this.isPlaying = true;
+
+    const ctx = this.getAudioContext();
+    if (ctx.state === 'suspended') await ctx.resume();
+
+    this.sessionGain = ctx.createGain();
+    this.sessionGain.connect(ctx.destination);
+
+    // Major triad notes (C, E, G) - frequencies in Hz
+    const notes = [261.63, 329.63, 392.00]; // C4, E4, G4 (approximate)
+    const noteDuration = 0.15; // 150ms per note
+    const rampTime = 0.01; // 10ms ramp for smooth tone
+    let currentTime = ctx.currentTime + AUDIO_TIMING.AUDIO_START_DELAY;
+
+    for (const frequency of notes) {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, currentTime);
+
+      gain.gain.setValueAtTime(0, currentTime);
+      gain.gain.linearRampToValueAtTime(this.settings.volume, currentTime + rampTime);
+      gain.gain.setValueAtTime(this.settings.volume, currentTime + noteDuration - rampTime);
+      gain.gain.linearRampToValueAtTime(0, currentTime + noteDuration);
+
+      oscillator.connect(gain);
+      gain.connect(this.sessionGain);
+      oscillator.start(currentTime);
+      oscillator.stop(currentTime + noteDuration);
+
+      currentTime += noteDuration;
+    }
+
+    const totalDuration = currentTime - ctx.currentTime;
+    this.playbackTimeout = setTimeout(() => {
+      this.isPlaying = false;
+      this.sessionGain = null;
+      if (onComplete) onComplete();
+    }, totalDuration * 1000);
+  }
+
+  /**
    * Close audio context and clean up resources
    * @public
    */
