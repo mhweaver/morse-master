@@ -79,7 +79,7 @@ Upload `index.html`, `morse-trainer.js`, and `morse-trainer.css` to any static h
 To add the trainer to your personal blog or website:
 
 **Step 1: Upload Assets**
-Upload `morse-trainer.js` and `morse-trainer.css` to your site's assets folder.
+Upload the `src/` directory to your site's assets folder.
 
 **Step 2: Add HTML**
 Add the CSS link and a container `div` where you want the app to appear:
@@ -102,6 +102,86 @@ Add the CSS link and a container `div` where you want the app to appear:
     </script>
 </body>
 ```
+
+#### Embedding in a Hugo website
+This project is packaged as a Hugo module, to make this easy.
+
+**Step 1: Get the module**
+Run `hugo mod get github.com/mhweaver/morse-master` in your hugo site's directory (you may need to `hugo mod init <path to repo>` first).
+
+**Step 2: Create a mount**
+Integrate this into your `hugo.yaml`:
+
+```yaml
+module:
+  imports:
+    - path: github.com/mhweaver/morse-master
+      mounts:
+        - source: src
+          target: static/morse
+```
+
+This makes it so that when rendering your site, the `src` directory from this project will be mounted to `static/morse` in your site.
+
+From here, you can create a simple HTML file like the `index.html` example in this repo, and put it somewhere in `static/` to host the trainer. Note that the `js` and `css` files will be accessible in the `/morse` directory due to the above mount configuration.
+
+**Step 3: Create a shortcode**
+Create a new file, `morse-master.html` in `layouts/shortcodes` with the following contents:
+
+```html
+{{/* Usage: {{< morse-trainer >}} 
+  
+  Assumes the 'src' folder from the module is mounted to 'static/morse'
+*/}}
+
+<!-- Load the Main CSS -->
+<link rel="stylesheet" href="/morse/morse-trainer.css">
+
+<style>
+    :root {
+        /* Add theme overrides here. See THEMING.md and THEMES_EXAMPLES.html for details. */
+    }
+    
+    /* Container for the app - app handles its own internal layout and styling */
+    .morse-app-wrapper {
+        width: 100%;
+        margin: 2rem 0;
+        line-height: 1.5;
+        box-sizing: border-box;
+    }
+</style>
+
+<!-- The App Container -->
+<div id="morse-trainer-{{ .Ordinal }}" class="morse-app-wrapper"></div>
+
+<!-- Initialize the Module -->
+<script type="module">
+    // Point this to your main entry file inside the mounted folder
+    import { MorseTrainer } from '/morse/morse-trainer.js';
+    
+    const container = document.getElementById('morse-trainer-{{ .Ordinal }}');
+    
+    // Initialize
+    if (container) {
+        new MorseTrainer(container);
+    }
+</script>
+
+<!-- Optional: Scoped Layout Fixes -->
+<style>
+    /* Ensure the app breaks out of narrow blog columns if necessary */
+    .morse-app-wrapper {
+        width: 100%;
+        margin: 2rem 0;
+        /* Resets basic properties to prevent theme bleeding */
+        line-height: 1.5; 
+        box-sizing: border-box;
+    }
+</style>
+```
+
+**Step 4: Use it!**
+In a content file, add `{{ <morse-master> }}`, to embed the trainer in the post.
 
 ## Interactive Koch Grid
 
