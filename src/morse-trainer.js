@@ -4,7 +4,6 @@
  */
 
 import { DOMCache } from './dom-utils.js';
-import { ErrorHandler } from './error-handler.js';
 import {
   MORSE_LIB,
   KOCH_SEQUENCE,
@@ -30,8 +29,7 @@ import {
 import {
   calculateAccuracyPercentage,
   formatTimeElapsed,
-  createDebounced,
-  getWeakCharacters
+  createDebounced
 } from './utils.js';
 import { AudioSynthesizer } from './audio-synthesizer.js';
 import { StateManager } from './state-manager.js';

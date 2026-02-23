@@ -7,25 +7,121 @@ import {
   CONTENT_GENERATION,
   KOCH_SEQUENCE,
   AI_PROMPTS,
-  AI_APIS,
-  PLAYBACK_DELAYS,
   DICTIONARY,
   COMMON_ABBR,
   Q_CODES,
-  PHRASES
+  PHRASES,
+  MORSE_LIB
 } from './constants.js';
-import {
-  pickRandomItem,
-  pickRandomCharacter,
-  generateRandomCharacterGroup,
-  generateSyntheticChallenge,
-  cleanMorseText,
-  getWeakCharacters
-} from './utils.js';
 
 export class ContentGenerator {
   constructor(accuracyData = {}) {
     this.accuracyData = accuracyData;
+  }
+
+  /**
+   * Get characters that have weak accuracy based on accuracy history
+   * @param {Object} accuracyData - Character accuracy object { char: { correct: n, total: n } }
+   * @returns {string[]} Array of characters with weak accuracy
+   * @private
+   */
+  static #getWeakCharacters(accuracyData) {
+    return Object.entries(accuracyData)
+      .filter(([_, accData]) =>
+        accData.total > CONTENT_GENERATION.COACH_WEAK_ATTEMPTS_THRESHOLD &&
+        accData.correct / accData.total < CONTENT_GENERATION.COACH_WEAK_ACCURACY_THRESHOLD
+      )
+      .map(([char]) => char);
+  }
+
+  /**
+   * Generate random item from array
+   * @param {Array} items - Array of items
+   * @returns {*} Random item
+   * @private
+   */
+  static #pickRandomItem(items) {
+    return items[Math.floor(Math.random() * items.length)];
+  }
+
+  /**
+   * Generate random character from array
+   * @param {Array} characters - Array of characters
+   * @returns {string} Random character
+   * @private
+   */
+  static #pickRandomCharacter(characters) {
+    return characters[Math.floor(Math.random() * characters.length)];
+  }
+
+  /**
+   * Generate random character group
+   * @param {string[]} characters - Available characters
+   * @param {number} length - Length of group
+   * @returns {string} Generated group
+   * @private
+   */
+  static #generateRandomCharacterGroup(characters, length) {
+    let group = '';
+    for (let i = 0; i < length; i++) {
+      group += ContentGenerator.#pickRandomCharacter(characters);
+    }
+    return group;
+  }
+
+  /**
+   * Generate synthetic challenge (random character groups)
+   * @param {string[]} unlockedCharacters - Available characters
+   * @param {Object} config - Configuration with numGroups and groupLength
+   * @returns {string} Generated synthetic challenge
+   * @private
+   */
+  static #generateSyntheticChallenge(unlockedCharacters, config = {}) {
+    const numGroupsRange = config.numGroupsRange || CONTENT_GENERATION.SYNTHETIC_GROUPS;
+    const groupLengthRange = config.groupLengthRange || CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH;
+    
+    const numGroups = Math.floor(
+      Math.random() * (numGroupsRange.max - numGroupsRange.min + 1)
+    ) + numGroupsRange.min;
+    
+    const groups = [];
+    for (let g = 0; g < numGroups; g++) {
+      const len = Math.floor(
+        Math.random() * (groupLengthRange.max - groupLengthRange.min + 1)
+      ) + groupLengthRange.min;
+      groups.push(ContentGenerator.#generateRandomCharacterGroup(unlockedCharacters, len));
+    }
+    
+    return groups.join(' ');
+  }
+
+  /**
+   * Clean text to only valid morse characters
+   * @param {string} text - Text to clean
+   * @returns {string} Cleaned text
+   * @private
+   */
+  static #cleanMorseText(text) {
+    return text
+      .toUpperCase()
+      .split('')
+      .filter(char => MORSE_LIB[char] || char === ' ')
+      .join('')
+      .trim();
+  }
+
+  /**
+   * Filter a list of items to only include those that use unlocked characters
+   * @param {Array} items - Items to filter (strings or objects with 'code' property)
+   * @param {Set} unlockedCharSet - Set of unlocked characters
+   * @returns {Array} Filtered items
+   * @private
+   */
+  static #filterByUnlockedChars(items, unlockedCharSet) {
+    return items.filter(item => {
+      const text = item.code || item;
+      return text.split('').every(char => unlockedCharSet.has(char) || char === ' ');
+    });
   }
 
   /**
@@ -100,14 +196,14 @@ export class ContentGenerator {
       if (contentPool.qcodes.length) availableContentTypes.push('qcodes');
       if (contentPool.phrases.length) availableContentTypes.push('phrases');
 
-      const contentType = pickRandomItem(availableContentTypes);
-      const selectedItem = pickRandomItem(contentPool[contentType]);
+      const contentType = ContentGenerator.#pickRandomItem(availableContentTypes);
+      const selectedItem = ContentGenerator.#pickRandomItem(contentPool[contentType]);
 
       challenge = typeof selectedItem === 'string' ? selectedItem : selectedItem.code;
       meaning = typeof selectedItem === 'string' ? '' : selectedItem.meaning;
     } else {
       // Generate synthetic challenge using random characters
-      challenge = generateSyntheticChallenge(unlockedCharArray);
+      challenge = ContentGenerator.#generateSyntheticChallenge(unlockedCharArray);
     }
 
     return { challenge, meaning };
@@ -125,14 +221,14 @@ export class ContentGenerator {
     const broadcastParts = [];
 
     if (Math.random() > 0.5 && contentPool.abbrs.length) {
-      const selectedAbbr = pickRandomItem(contentPool.abbrs);
+      const selectedAbbr = ContentGenerator.#pickRandomItem(contentPool.abbrs);
       broadcastParts.push(selectedAbbr.code);
     }
     if (contentPool.words.length) {
-      broadcastParts.push(pickRandomItem(contentPool.words));
+      broadcastParts.push(ContentGenerator.#pickRandomItem(contentPool.words));
     }
     if (Math.random() > 0.5 && contentPool.qcodes.length) {
-      const selectedQCode = pickRandomItem(contentPool.qcodes);
+      const selectedQCode = ContentGenerator.#pickRandomItem(contentPool.qcodes);
       broadcastParts.push(selectedQCode.code);
     }
 
@@ -164,12 +260,12 @@ export class ContentGenerator {
    * @public
    */
   generateOfflineCoach(lessonLevel, manualChars = []) {
-    const weakCharacters = getWeakCharacters(this.accuracyData);
+    const weakCharacters = ContentGenerator.#getWeakCharacters(this.accuracyData);
     const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet(lessonLevel, manualChars));
 
     const groups = [];
     for (let i = 0; i < CONTENT_GENERATION.COACH_DRILL_GROUPS; i++) {
-      groups.push(generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
+      groups.push(ContentGenerator.#generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
     }
 
     return {
@@ -201,7 +297,7 @@ export class ContentGenerator {
    * @public
    */
   getAICoachPrompt(lessonLevel, manualChars = []) {
-    const weakCharacters = getWeakCharacters(this.accuracyData);
+    const weakCharacters = ContentGenerator.#getWeakCharacters(this.accuracyData);
     const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet(lessonLevel, manualChars));
     const allUnlockedCharacters = Array.from(this.getUnlockedSet(lessonLevel, manualChars)).join(', ');
 
@@ -220,7 +316,7 @@ export class ContentGenerator {
    * @public
    */
   validateAIResponse(aiResponse, lessonLevel, manualChars = []) {
-    const cleanedText = cleanMorseText(aiResponse);
+    const cleanedText = ContentGenerator.#cleanMorseText(aiResponse);
     const unlockedSet = this.getUnlockedSet(lessonLevel, manualChars);
     const isValidText = cleanedText.split('').every(char => char === ' ' || unlockedSet.has(char));
 
@@ -255,7 +351,7 @@ export class ContentGenerator {
    * @public
    */
   generateCoachBatch(batchSize, lessonLevel, manualChars = []) {
-    const weakCharacters = getWeakCharacters(this.accuracyData);
+    const weakCharacters = ContentGenerator.#getWeakCharacters(this.accuracyData);
     const hasWeakChars = weakCharacters.length > 0;
 
     const batch = [];
@@ -265,7 +361,7 @@ export class ContentGenerator {
       
       const groups = [];
       for (let j = 0; j < CONTENT_GENERATION.COACH_DRILL_GROUPS; j++) {
-        groups.push(generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
+        groups.push(ContentGenerator.#generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
       }
 
       batch.push({
