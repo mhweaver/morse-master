@@ -36,7 +36,25 @@ export const PHRASES = [
   "TNX FER CALL", "MY NAME IS", "UR RST IS 5NN", "QTH IS NEW YORK", "FB OM TU 73", "QRZ DE K1ABC",
   "WX HR IS SUNNY", "RIG HR IS QRP", "HW CPY? BK", "GM OM GA", "NAME?", "QTH?", "RST?", "RIG?",
   "AGE?", "CALL?", "K1ABC/P", "W1AW/3", "FREQ?", "QSL?", "R.I.P.", "U.S.A.", "JAN.", "FEB.",
-  "A, B, C", "1, 2, 3", "NOW, LATER"
+  "A, B, C", "1, 2, 3", "NOW, LATER", "THANKS FOR THE CALL", "GOOD MORNING SIR", "NICE TO MEET YOU",
+  "RECEIVING YOU LOUD AND CLEAR", "YOUR SIGNAL IS EXCELLENT", "STANDING BY FOR YOUR RESPONSE",
+  "PLEASE WAIT ONE MOMENT", "END OF MESSAGE", "END OF TRANSMISSION", "GOING TO SLEEP NOW",
+  "TALK TO YOU LATER", "BEST OF LUCK TO YOU", "HAPPY TO WORK YOU", "LOOKING FORWARD TO OUR CONTACT",
+  "THANKS FOR THE CONTACT", "OP IS ON VACATION", "ANTENNA IS DOWN FOR REPAIR", "STATION IS SHUT DOWN",
+  "LETS CHANGE FREQUENCY", "WILL YOU CHECK MY SIGNAL", "WHAT IS YOUR POWER OUTPUT", "HOW IS MY ENGLISH",
+  "MAY I HAVE YOUR NAME", "PLEASE SPELL YOUR LOCATION", "CONFIRM YOUR LOCATION", "YOUR CALL SIGN PLEASE",
+  "NICE WEATHER TODAY", "WEATHER IS POOR HERE", "TEMPERATURE HERE IS 70", "RAINING WHERE YOU ARE",
+  "LETS KEEP IN TOUCH", "SEE YOU ON THE AIR", "PERHAPS WE WILL MEET", "HOPE TO HEAR YOU SOON",
+  "WHAT IS YOUR AGE", "HOW LONG ON CW", "BEEN DOING THIS FOR YEARS", "JUST GETTING STARTED",
+  "RIG IS A SIMPLE SETUP", "ANTENNA IS NOT VERY GOOD", "SIGNAL IS GETTING WEAK", "INTERFERENCE IS HEAVY",
+  "I WILL LISTEN FOR YOU", "KEEP TRYING AGAIN", "DIFFICULT CONDITIONS TODAY", "PROPAGATION IS GOOD",
+  "CONTEST QSO", "FIELD DAY EVENT", "ACTIVATION SCHEDULE", "WILL SEND QSLS SOON", "PLEASE SEND RETURN",
+  "WORKING AT HOME STATION", "USING PORTABLE TO HILLTOP", "BATTERY POWERED TOMORROW", "RUNNING QRP ONLY",
+  "MOBILE INSTALLATION COMPLETE", "EMERGENCY USE ONLY", "TESTING NEW EQUIPMENT", "FREQUENCY IN USE",
+  "SORRY WRONG NUMBER", "STAND BY PLEASE", "LOUD AND CLEAR", "VERY STRONG SIGNAL", "FADING NOW",
+  "BAND CONDITIONS IMPROVING", "TRY AGAIN LATER", "WILL RETURN SOON", "TEMPORARILY OFF AIR",
+  "THANKS FOR QSO", "ENJOY THE REST OF YOUR DAY", "SAFE TRAVELS TO YOU", "VISIT US SOMETIME",
+  "DID YOU COPY THAT", "PLEASE REPEAT ADDRESS", "COPY YOUR DETAILS", "CONFIRM ALL INFO"
 ];
 
 export const DICTIONARY = [
@@ -47,7 +65,156 @@ export const DICTIONARY = [
   "ROOT", "MOP", "POP", "SOP", "LOOT", "TROOP", "MOTOR", "ROTOR", "SOLO", "TOTAL", "POOR", "TOUR", "LOW",
   "ROW", "TOW", "BOW", "SOW", "MOW", "PAW", "LAW", "SAW", "RAW", "WAR", "WAS", "WOOL", "SLOW", "FLOW",
   "BLOW", "GLOW", "WAIT", "WALL", "WILL", "THE", "AND", "FOR", "ARE", "BUT", "NOT", "YOU", "ANY", "CAN",
-  "HAD", "HER", "ONE", "DAY", "GET", "HAS", "HIM", "RADIO", "POWER", "SIGNAL", "HAM", "KEY", "MORSE", "TIME", "WORD", "NAME"
+  "HAD", "HER", "ONE", "DAY", "GET", "HAS", "HIM", "RADIO", "POWER", "SIGNAL", "HAM", "KEY", "MORSE", "TIME", "WORD", "NAME",
+  "WORK", "CALL", "LOVE", "LIFE", "HOPE", "HELP", "MAKE", "TAKE", "LIKE", "PLAY", "STAY", "PITY",
+  "MAIL", "RAIL", "SAIL", "TAIL", "FAIL", "NAIL", "HAIL", "JAIL", "PAIL", "WAIL", "BAIT", "WAIT",
+  "LATE", "RATE", "MATE", "FATE", "GATE", "HATE", "DATE", "PATE", "SATE", "MORE", "SORE", "CORE",
+  "BORE", "TORE", "WORE", "PORE", "FORE", "LORE", "GORE", "STORE", "SHORE", "SCORE", "SNORE", "SWORE",
+  "ABLE", "TABLE", "STABLE", "CABLE", "FABLE", "MAPLE", "STAPLE", "SIMPLE", "SAMPLE", "AMPLE", "TEMPLE",
+  "APPLE", "RIPPLE", "NIPPLE", "SUPPLY", "REPLY", "APPLY", "IMPLY", "COMPLY", "EMPLOY", "DEPLOY",
+  "BOX", "FOX", "MIX", "FIX", "SIX", "WAX", "TAX", "LAX", "SAX", "PAX", "PLEX", "TEXT", "NEXT", "EXIT",
+  "AXE", "FAX", "MAX", "RELAX", "ANNEX", "COMPLEX", "PERPLEX", "AFFLUX", "INFLUX",
+  "GOOD", "WOOD", "FOOD", "MOOD", "HOOD", "STOOD", "FLOOD", "BLOOD", "BROOD", "UNDERSTOOD",
+  "BIG", "DIG", "FIG", "GIG", "JIG", "PIG", "RIG", "WIG", "BRIG", "TWIG", "WHIG", "SPRIG",
+  "BAD", "CAD", "DAD", "FAD", "GAD", "LAD", "MAD", "PAD", "RAD", "SAD", "TAD", "WAD", "BRAD", "CHAD",
+  "BED", "FED", "LED", "RED", "TED", "WED", "BRED", "FLED", "SHRED", "SPREAD", "THREAD", "SHED",
+  "DOG", "FOG", "HOG", "JOG", "LOG", "BOG", "COG", "BLOG", "CLOG", "FROG", "SLOG", "SMOG",
+  "BAG", "GAG", "HAG", "JAG", "LAG", "NAG", "RAG", "SAG", "TAG", "WAG", "BRAG", "DRAG", "FLAG", "SNAG",
+  "CAT", "BAT", "FAT", "GAT", "HAT", "LAT", "VAT", "BRAT", "CHAT", "FLAT",
+  "BIT", "FIT", "GIT", "HIT", "KIT", "LIT", "PIT", "SIT", "WIT", "BRIT", "FLIT", "GRIT", "SLIT", "SPIT",
+  "CUT", "GUT", "HUT", "JUT", "NUT", "GLUT", "SHUT", "SLUT", "SMUT", "STRUT",
+  "DRY", "FRY", "PRY", "TRY", "WRY", "CRY", "BURY", "FERRY", "HURRY", "WORRY", "HAIRY", "FAIRY", "DIARY",
+  "FIVE", "GIVE", "HIVE", "LIVE", "DIVE", "DRIVE", "STRIVE", "ALIVE", "ARRIVE", "DERIVE", "FORGIVE",
+  "LOVE", "DOVE", "COVE", "GROVE", "GLOVE", "PROVE", "SHOVE", "TROVE", "ABOVE", "BEHOVE",
+  "MAKE", "BAKE", "CAKE", "FAKE", "LAKE", "RAKE", "SAKE", "WAKE", "BRAKE", "DRAKE", "FLAKE", "SHAKE",
+  "LIKE", "BIKE", "HIKE", "MIKE", "PIKE", "STRIKE", "SPIKE", "ALIKE", "DISLIKE",
+  "MEET", "BEET", "FEET", "FLEET", "GREET", "SHEET", "SLEET", "STREET", "SWEET", "TWEET",
+  "BEAT", "FEAT", "HEAT", "MEAT", "NEAT", "PEAT", "SEAT", "CHEAT", "TREAT", "WHEAT", "GREAT",
+  "BOOK", "COOK", "HOOK", "LOOK", "TOOK", "BROOK", "CROOK", "SHOOK", "FORSOOK", "MISTOOK",
+  "SCHOOL", "COOL", "FOOL", "STOOL", "SPOOL",
+  "BLUE", "CLUE", "GLUE", "TRUE", "FLEW", "BLEW", "BREW", "CREW", "DREW", "GREW", "SLEW", "STEW", "SCREW", "SHREW",
+  "KNOW", "BLOW", "PLOW", "SNOW", "SHOW", "CROW", "BROW", "GROW", "THROW", "MEOW",
+  "ROAD", "TOAD", "LOAD", "BROAD", "GOAD",
+  "BOAT", "COAT", "GOAT", "MOAT", "FLOAT", "THROAT",
+  "SEEN", "BEEN", "KEEN", "QUEEN", "SCREEN", "GREEN", "SHEEN", "TEEN", "BETWEEN",
+  "KEEP", "BEEP", "DEEP", "JEEP", "PEEP", "SEEP", "SLEEP", "STEEP", "SWEEP", "CREEP", "ASLEEP",
+  "REAL", "DEAL", "HEAL", "MEAL", "PEAL", "SEAL", "TEAL", "VEAL", "STEAL", "WHEEL", "APPEAL",
+  "HEAR", "DEAR", "FEAR", "GEAR", "NEAR", "PEAR", "REAR", "SEAR", "TEAR", "WEAR", "BEAR", "CLEAR", "SMEAR",
+  "YEAR", "BEER", "DEER", "JEER", "LEER", "PEER", "SEER", "VEER", "CHEER", "SHEER", "SNEER", "STEER", "CHEER",
+  "HIGH", "NIGH", "SIGH", "THIGH", "NIGHT", "SIGHT", "MIGHT", "FIGHT", "LIGHT", "RIGHT", "TIGHT", "BRIGHT", "FLIGHT",
+  "MUSIC", "MAGIC", "PANIC", "PICNIC", "PUBLIC", "TRAGIC", "FABRIC", "TRAFFIC", "PLASTIC", "ELASTIC",
+  "HOUSE", "MOUSE", "LOUSE", "SPOUSE", "DOUSE", "GROUSE", "BLOUSE", "ROUSE", "SOUSE",
+  "CAUSE", "PAUSE", "CLAUSE", "BECAUSE", "APPLAUSE",
+  "GABLE", "SABLE", "ENABLE", "UNABLE",
+  "DAPPLE", "GRAPPLE", "SIMPLE", "DIMPLE", "PIMPLE", "SAMPLE", "EXAMPLE",
+  "BOTTLE", "THROTTLE", "LITTLE", "BRITTLE", "CATTLE", "BATTLE", "PRATTLE", "RATTLE", "TATTLE", "SETTLE",
+  "MIDDLE", "FIDDLE", "DIDDLE", "RIDDLE", "STRADDLE", "PADDLE", "SADDLE",
+  "BUTTON", "MUTTON", "COTTON", "ROTTEN", "KITTEN", "MITTEN", "BITTEN", "WRITTEN", "FLATTEN", "OTTEN",
+  "LETTER", "BETTER", "SETTER", "WETTER", "FETTER", "GETTER", "SCATTER", "SHATTER", "FLATTER",
+  "SUPPER", "COPPER", "HOPPER", "POPPER", "CHOPPER", "SHOPPER", "STOPPER", "TOPPER", "DROPPER",
+  "DINNER", "WINNER", "SINNER", "THINNER", "SPINNER", "BEGINNER",
+  "MATTER", "FATTER", "LATTER", "PATTER", "CHATTER", "CLATTER", "TATTER",
+  "SUDDEN", "HIDDEN", "RIDDEN", "FORBIDDEN",
+  "SADNESS", "MADNESS", "BADNESS", "GLADNESS",
+  "KINDNESS", "BLINDNESS", "BOLDNESS", "COLDNESS", "FONDNESS", "ODDNESS",
+  "BUSINESS", "ILLNESS", "DULLNESS", "FULLNESS", "STILLNESS",
+  "WITHOUT", "ABOUT", "SHOUT", "SCOUT", "SPROUT", "DOUBT", "CLOUT", "FLOUT", "GROUT", "SNOUT",
+  "BRING", "RING", "SING", "WING", "STING", "SLING", "SPRING", "STRING", "CLING", "FLING", "SWING",
+  "THING", "THINK", "BLINK", "CLINK", "DRINK", "SINK", "LINK", "PINK", "BRINK", "STINK",
+  "BANK", "BLANK", "DANK", "FRANK", "PLANK", "PRANK", "RANK", "SANK", "TANK", "YANK", "THANK", "SHANK",
+  "WEAK", "BEAK", "LEAK", "PEAK", "SPEAK", "SQUEAK", "STEAK", "BREAK", "FREAK", "SNEAK", "STREAK",
+  "PEACE", "PLACE", "SPACE", "TRACE", "GRACE", "BRACE", "FACE", "LACE", "RACE", "PACE", "CHASE",
+  "PREACH", "REACH", "BEACH", "TEACH", "PLEASE", "TEASE", "LEASE", "CREASE",
+  "FRIEND", "SEND", "BEND", "FEND", "LEND", "MEND", "REND", "TEND", "VEND", "WEND", "BLEND", "SPEND", "TREND",
+  "HAND", "BAND", "LAND", "SAND", "STAND", "BRAND", "GRAND", "STRAND",
+  "WIND", "FIND", "KIND", "MIND", "BIND", "GRIND", "BLIND", "REMIND",
+  "BOLD", "COLD", "FOLD", "GOLD", "HOLD", "MOLD", "SOLD", "TOLD", "SCOLD", "UPHOLD",
+  "MILD", "WILD", "BUILD", "GUILD", "CHILD",
+  "FORM", "DORM", "NORM", "STORM", "PERFORM",
+  "ARM", "FARM", "HARM", "CHARM", "ALARM", "WARM",
+  "BORN", "CORN", "HORN", "MORN", "PORN", "TORN", "WORN", "SCORN", "SWORN",
+  "TURN", "BURN", "EARN", "LEARN", "RETURN", "CONCERN", "DISCERN",
+  "JUMP", "BUMP", "DUMP", "HUMP", "LUMP", "PUMP", "SLUMP", "STUMP", "THUMP", "TRUMP",
+  "BAND", "HAND", "LAND", "SAND", "STRAND", "BRAND", "STRAND", "COMMAND",
+  "PAST", "FAST", "LAST", "MAST", "VAST", "CAST", "BLAST", "COAST", "BOAST", "ROAST", "TOAST",
+  "TEST", "BEST", "FEST", "JEST", "NEST", "PEST", "REST", "VEST", "WEST", "ZEST", "GUEST", "QUEST",
+  "OLD", "BOLD", "COLD", "FOLD", "GOLD", "HOLD", "MOLD", "SOLD", "TOLD",
+  "SYSTEM", "RHYTHM", "SOUTHERN", "EASTERN", "WESTERN", "NORTHERN", "SPECIAL",
+  "MODERN", "MOMENT", "CONTENT", "EXTENT", "INTENT", "PRESENT", "ABSENT", "ACCENT",
+  "SILVER", "RIVER", "NEVER", "EVER", "CLEVER", "LEVER", "BEAVER", "FEVER", "SEVERE",
+  "MATTER", "RATHER", "WEATHER", "FEATHER", "LEATHER", "GATHER", "FATHER", "LATHER", "BATHER",
+  "SUMMER", "HAMMER", "STAMMER", "GLAMOUR", "FLAVOR", "FAVOUR", "HONOUR", "RUMOUR",
+  "ANCHOR", "FINGER", "ANGER", "DANGER", "RANGER", "HUNGER", "WONDER", "THUNDER", "PLUNDER",
+  "LISTEN", "GLISTEN", "FASTEN", "HASTEN", "SOFTEN", "BROKEN", "FROZEN", "CHOSEN", "STOLEN",
+  "PERSON", "REASON", "SEASON", "PRISON", "POISON", "TOXIN", "COUSIN", "DOZEN", "POLLEN",
+  "SIGNAL", "ANIMAL", "ANNUAL", "MANUAL", "CASUAL", "VISUAL", "USUAL", "ACTUAL", "MUTUAL",
+  "LISTEN", "GLISTEN", "CHRISTEN", "MISTAKEN", "TAKEN", "WAKEN", "FORSAKEN", "AWAKEN",
+  "BROKEN", "SPOKEN", "WOKEN", "TOKEN", "SUNKEN", "DRUNKEN", "SHRUNKEN", "SWOLLEN",
+  "GOLDEN", "MOLDEN", "HOLDEN", "EMBOLDEN",
+  "NATURE", "FUTURE", "CULTURE", "PICTURE", "TEXTURE", "MIXTURE", "FIXTURE", "CAPTURE", "TORTURE",
+  "DANGER", "ANGER", "RANGER", "MANGER", "HANGER", "SLANGER", "STRANGER", "GINGER", "FINGER",
+  "FINGER", "LINGER", "SINGER", "RINGER", "WINGER", "BRINGER", "SLINGER", "STINGER", "SWINGER",
+  "CENTER", "ENTER", "WINTER", "PINTER", "SPLINTER", "GLITTER", "BITTER", "FITTER", "HITTER",
+  "BITTER", "LITTER", "GLITTER", "CRITTER", "TWITTER", "QUITTER", "SITTER", "FITTER", "KNITTER",
+  "ANSWER", "DANGER", "RANGER", "STRANGER", "MESSENGER", "PASSENGER", "MANAGER", "TEENAGER",
+  "MEMBER", "REMEMBER", "DECEMBER", "SEPTEMBER", "NOVEMBER", "SLUMBER", "UMBER", "LUMBER",
+  "WONDER", "UNDER", "THUNDER", "BLUNDER", "PLUNDER", "FOUNDER", "BOUNDER", "POUNDER",
+  "NORTH", "SOUTH", "MOUTH", "YOUTH", "TRUTH", "FOURTH", "GROWTH", "WORTH", "FORTH",
+  "FIRST", "BURST", "WORST", "THIRST", "STIR", "BLUR", "SLUR", "SPUR", "OCCUR", "SURE",
+  "PURE", "CURE", "LURE", "ALLURE", "OBSCURE", "SECURE", "ENDURE", "MATURE", "PROCEDURE",
+  "COUNT", "MOUNT", "AMOUNT", "DISCOUNT", "ACCOUNT", "RECOUNT", "DISMOUNT", "PARAMOUNT",
+  "PURPOSE", "COMPASS", "CLASS", "GLASS", "GRASS", "BRASS", "MASS", "PASS", "FAST", "LAST", "VAST",
+  "PRESENT", "ABSENT", "ACCENT", "ASCENT", "CONSENT", "CONTENT", "DESCENT", "EXTENT", "INDENT",
+  "QUEST", "REQUEST", "SUGGEST", "INVEST", "CONTEST", "PROTEST", "MANIFEST", "INTEREST", "FOREST",
+  "ACROSS", "EMBOSS", "GLOSS", "TOSS", "BOSS", "LOSS", "MOSS", "CROSS", "GROSS",
+  "DIPOLE", "YAGI", "AMP", "UHF", "VHF", "HF", "MF", "LF", "TECH", "GENERAL", "EXTRA",
+  "TUNER", "COAX", "FEEDLINE", "IMPEDANCE", "RESISTANCE", "GROUND", "EARTH", "BEAM",
+  "VERTICAL", "HORIZONTAL", "PILEUP", "PROPAGATION", "IONOSPHERE", "SKIP", "DX", "DISTANCE",
+  "FREQUENCY", "BAND", "HERTZ", "OSCILLATOR", "CRYSTAL", "RELAY", "TRANSFORMER", "CAPACITOR",
+  "RESISTOR", "INDUCTOR", "DIODE", "TRANSISTOR", "AMPLIFIER", "RECEIVER", "TRANSMITTER",
+  "REPEATER", "SIMPLEX", "DUPLEX", "SSBTONECONTEST", "OPERATING", "PORTABLE", "MOBILE", "FIXED",
+  "STROBE", "STROBE", "NOVICE", "TECHNICIAN", "ADVANCED", "EXPERT", "NETWORKS", "SIMPLEX", "LINEAR",
+  "AUDIO", "MICROPHONE", "HEADPHONES", "SPEAKER", "METER", "SCOPE", "ANALYZER", "FIELD", "EMERGENCY",
+  "SAFETY", "EXERCISE", "DRILL", "PAGER", "MOBILE", "REPEATER", "HOTSPOT", "INTERNET", "GATEWAY"
+];
+
+export const NUMBERS = [
+  "ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN",
+  "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN", "TWENTY",
+  "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY", "HUNDRED", "THOUSAND",
+  "MILLION", "PLUS", "MINUS", "EQUALS", "TIMES", "DIVIDED", "POINT", "PERCENT", "RATIO",
+  "ZERO ZERO", "ONE ONE", "TWO TWO", "THREE THREE", "FOUR FOUR", "FIVE FIVE",
+  "SIX SIX", "SEVEN SEVEN", "EIGHT EIGHT", "NINE NINE", "ONE TWO THREE", "FOUR FIVE SIX",
+  "SEVEN EIGHT NINE", "TEN TWENTY THIRTY", "FORTY FIFTY SIXTY", "SEVENTY EIGHTY NINETY",
+  "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+  "00", "01", "02", "03", "04", "05", "06", "07", "08", "09",
+  "10", "11", "12", "13", "14", "15", "16", "17", "18", "19",
+  "20", "21", "22", "23", "24", "25", "26", "27", "28", "29",
+  "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
+  "40", "41", "42", "43", "44", "45", "46", "47", "48", "49",
+  "50", "51", "52", "53", "54", "55", "56", "57", "58", "59",
+  "60", "61", "62", "63", "64", "65", "66", "67", "68", "69",
+  "70", "71", "72", "73", "74", "75", "76", "77", "78", "79",
+  "80", "81", "82", "83", "84", "85", "86", "87", "88", "89",
+  "90", "91", "92", "93", "94", "95", "96", "97", "98", "99",
+  "100", "200", "300", "400", "500", "600", "700", "800", "900", "1000",
+  "123", "456", "789", "999", "5NN", "599"
+];
+
+export const BAND_NAMES = [
+  "EIGHTY METERS", "FORTY METERS", "TWENTY METERS", "SEVENTEEN METERS", "FIFTEEN METERS", "TWELVE METERS", "TEN METERS",
+  "TWENTY KILOHERTZ", "THIRTY KILOHERTZ", "THIRTY KILOHERTZ", "ONE HUNDRED KILOHERTZ",
+  "EIGHTY METERS", "SIXTY METERS", "FORTY METERS", "THIRTY METERS", "TWENTY METERS",
+  "ONE SIXTY METERS", "SIX METERS", "TWO METERS", "SEVENTY CENTIMETERS", "THIRTY THREE CENTIMETERS"
+];
+
+export const FREQUENCIES = [
+  "POINT ONE", "POINT TWO", "POINT THREE", "POINT FIVE", "POINT SEVEN", "POINT EIGHT", "POINT NINE",
+  "THREE FIFTY", "THREE SIXTY", "THREE SEVENTY", "THREE EIGHTY", "THREE NINETY",
+  "SEVEN ZERO ZERO", "SEVEN FIFTY", "SEVEN ONE HUNDRED", "SEVEN TWO HUNDRED", "SEVEN THREE HUNDRED",
+  "FOURTEEN ZERO ZERO", "FOURTEEN ONE HUNDRED", "FOURTEEN TWO HUNDRED", "FOURTEEN THREE HUNDRED",
+  "TWENTY ONE ZERO ZERO", "TWENTY ONE FIVE HUNDRED", "TWENTY TWO HUNDRED", "TWENTY FIVE HUNDRED",
+  "TWENTY EIGHT ZERO ZERO", "TWENTY NINE HUNDRED", "TWENTY NINE FIVE HUNDRED"
 ];
 
 /**
@@ -177,7 +344,7 @@ export class ContentGenerator {
    * Filter training content pools to only include unlocked characters
    * @param {number} lessonLevel - Current lesson level
    * @param {string[]} manualChars - Manually unlocked characters
-   * @returns {Object} Object with filtered words, abbreviations, Q-codes, and phrases
+   * @returns {Object} Object with filtered words, abbreviations, Q-codes, phrases, numbers, bands, and frequencies
    * @public
    */
   getFilteredPool(lessonLevel, manualChars = []) {
@@ -194,7 +361,10 @@ export class ContentGenerator {
       words: filterByUnlocked(DICTIONARY),
       abbrs: filterByUnlocked(COMMON_ABBR),
       qcodes: filterByUnlocked(Q_CODES),
-      phrases: filterByUnlocked(PHRASES)
+      phrases: filterByUnlocked(PHRASES),
+      numbers: filterByUnlocked(NUMBERS),
+      bands: filterByUnlocked(BAND_NAMES),
+      frequencies: filterByUnlocked(FREQUENCIES)
     };
   }
 
@@ -211,7 +381,8 @@ export class ContentGenerator {
     const contentPool = this.getFilteredPool(lessonLevel, manualChars);
 
     const hasContent = (contentPool.words.length + contentPool.abbrs.length +
-      contentPool.qcodes.length + contentPool.phrases.length) > 0;
+      contentPool.qcodes.length + contentPool.phrases.length + contentPool.numbers.length +
+      contentPool.bands.length + contentPool.frequencies.length) > 0;
     const useRealContent = hasContent && Math.random() < CONTENT_GENERATION.REAL_CONTENT_PROBABILITY;
 
     let challenge = '';
@@ -223,6 +394,9 @@ export class ContentGenerator {
       if (contentPool.abbrs.length) availableContentTypes.push('abbrs');
       if (contentPool.qcodes.length) availableContentTypes.push('qcodes');
       if (contentPool.phrases.length) availableContentTypes.push('phrases');
+      if (contentPool.numbers.length) availableContentTypes.push('numbers');
+      if (contentPool.bands.length) availableContentTypes.push('bands');
+      if (contentPool.frequencies.length) availableContentTypes.push('frequencies');
 
       const contentType = ContentGenerator.#pickRandomItem(availableContentTypes);
       const selectedItem = ContentGenerator.#pickRandomItem(contentPool[contentType]);
