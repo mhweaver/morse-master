@@ -19,10 +19,10 @@ import {
   MODAL_IDENTIFIERS,
   DEFAULT_SETTINGS,
   SETTINGS_RANGES,
-  COMMON_ABBR,
   PLAYBACK_DELAYS,
   DEFAULT_STATS
 } from './constants.js';
+import { COMMON_ABBR } from './content-generator.js';
 import {
   formatTimeElapsed,
   createDebounced

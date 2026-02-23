@@ -7,13 +7,48 @@ import {
   CONTENT_GENERATION,
   KOCH_SEQUENCE,
   AI_PROMPTS,
-  DICTIONARY,
-  COMMON_ABBR,
-  Q_CODES,
-  PHRASES,
   MORSE_LIB
 } from './constants.js';
 import { AccuracyTracker } from './accuracy-tracker.js';
+
+// --- Training Content ---
+export const COMMON_ABBR = [
+  { code: "CQ", meaning: "Calling any station" }, { code: "DE", meaning: "From" }, { code: "RST", meaning: "Signal report" },
+  { code: "QTH", meaning: "Location" }, { code: "OP", meaning: "Operator" }, { code: "HW", meaning: "How copy?" },
+  { code: "BK", meaning: "Back / Break" }, { code: "SK", meaning: "End of contact" }, { code: "TU", meaning: "Thank you" },
+  { code: "73", meaning: "Best regards" }, { code: "GA", meaning: "Go ahead" }, { code: "GM", meaning: "Good morning" },
+  { code: "GN", meaning: "Good night" }, { code: "UR", meaning: "Your / You are" }, { code: "WX", meaning: "Weather" },
+  { code: "FB", meaning: "Fine Business (Good)" }, { code: "OM", meaning: "Old Man (Friend)" }, { code: "YL", meaning: "Young Lady" },
+  { code: "XYL", meaning: "Wife" }, { code: "RIG", meaning: "Radio equipment" }, { code: "ANT", meaning: "Antenna" },
+  { code: "HR", meaning: "Here" }, { code: "ES", meaning: "And" }, { code: "FER", meaning: "For" }
+];
+
+export const Q_CODES = [
+  { code: "QRL", meaning: "Are you busy?" }, { code: "QRM", meaning: "Interference" }, { code: "QRN", meaning: "Static" },
+  { code: "QRO", meaning: "Increase power" }, { code: "QRP", meaning: "Low power" }, { code: "QRQ", meaning: "Send faster" },
+  { code: "QRS", meaning: "Send slower" }, { code: "QRT", meaning: "Stop sending" }, { code: "QRV", meaning: "I am ready" },
+  { code: "QRZ", meaning: "Who is calling?" }, { code: "QSB", meaning: "Fading signal" }, { code: "QSL", meaning: "Acknowledged" },
+  { code: "QSY", meaning: "Change freq" }, { code: "QRL?", meaning: "Are you busy?" }, { code: "QRV?", meaning: "Are you ready?" },
+  { code: "QTH?", meaning: "Location?" }
+];
+
+export const PHRASES = [
+  "TNX FER CALL", "MY NAME IS", "UR RST IS 5NN", "QTH IS NEW YORK", "FB OM TU 73", "QRZ DE K1ABC",
+  "WX HR IS SUNNY", "RIG HR IS QRP", "HW CPY? BK", "GM OM GA", "NAME?", "QTH?", "RST?", "RIG?",
+  "AGE?", "CALL?", "K1ABC/P", "W1AW/3", "FREQ?", "QSL?", "R.I.P.", "U.S.A.", "JAN.", "FEB.",
+  "A, B, C", "1, 2, 3", "NOW, LATER"
+];
+
+export const DICTIONARY = [
+  "US", "SUM", "AS", "ASK", "ARK", "ARM", "RAM", "AM", "MAP", "SAP", "SUP", "UP", "PAPA", "SPAM", "PUMP",
+  "AT", "MAT", "PAT", "TAP", "SAT", "RAT", "PART", "TRAP", "STAR", "START", "TART", "PUT", "RUT", "MUST",
+  "TRUST", "PAST", "MAST", "ALL", "TALL", "PAL", "LAP", "SLAP", "LULL", "PULL", "PLUM", "SLUM", "ALARM",
+  "ALTAR", "SALT", "POT", "TOP", "LOT", "ROT", "TO", "SO", "OR", "OUR", "OUT", "LOOP", "TOOL", "POOL",
+  "ROOT", "MOP", "POP", "SOP", "LOOT", "TROOP", "MOTOR", "ROTOR", "SOLO", "TOTAL", "POOR", "TOUR", "LOW",
+  "ROW", "TOW", "BOW", "SOW", "MOW", "PAW", "LAW", "SAW", "RAW", "WAR", "WAS", "WOOL", "SLOW", "FLOW",
+  "BLOW", "GLOW", "WAIT", "WALL", "WILL", "THE", "AND", "FOR", "ARE", "BUT", "NOT", "YOU", "ANY", "CAN",
+  "HAD", "HER", "ONE", "DAY", "GET", "HAS", "HIM", "RADIO", "POWER", "SIGNAL", "HAM", "KEY", "MORSE", "TIME", "WORD", "NAME"
+];
 
 /**
  * @typedef {import('./accuracy-tracker.js').AccuracyTracker} AccuracyTracker
