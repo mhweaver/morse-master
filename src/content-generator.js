@@ -13,25 +13,18 @@ import {
   PHRASES,
   MORSE_LIB
 } from './constants.js';
+import { AccuracyTracker } from './accuracy-tracker.js';
+
+/**
+ * @typedef {import('./accuracy-tracker.js').AccuracyTracker} AccuracyTracker
+ */
 
 export class ContentGenerator {
-  constructor(accuracyData = {}) {
-    this.accuracyData = accuracyData;
-  }
-
   /**
-   * Get characters that have weak accuracy based on accuracy history
-   * @param {Object} accuracyData - Character accuracy object { char: { correct: n, total: n } }
-   * @returns {string[]} Array of characters with weak accuracy
-   * @private
+   * @param {AccuracyTracker} [accuracyTracker=null] - Character accuracy tracker for weak character detection
    */
-  static #getWeakCharacters(accuracyData) {
-    return Object.entries(accuracyData)
-      .filter(([_, accData]) =>
-        accData.total > CONTENT_GENERATION.COACH_WEAK_ATTEMPTS_THRESHOLD &&
-        accData.correct / accData.total < CONTENT_GENERATION.COACH_WEAK_ACCURACY_THRESHOLD
-      )
-      .map(([char]) => char);
+  constructor(accuracyTracker = null) {
+    this.accuracyTracker = accuracyTracker || new AccuracyTracker();
   }
 
   /**
@@ -125,12 +118,12 @@ export class ContentGenerator {
   }
 
   /**
-   * Update accuracy data for weak character calculations
-   * @param {Object} newAccuracyData - Character accuracy statistics
+   * Update accuracy tracker
+   * @param {AccuracyTracker} newAccuracyTracker - New accuracy tracker instance
    * @public
    */
-  updateAccuracyData(newAccuracyData) {
-    this.accuracyData = newAccuracyData;
+  updateAccuracyData(newAccuracyTracker) {
+    this.accuracyTracker = newAccuracyTracker;
   }
 
   /**
@@ -260,7 +253,7 @@ export class ContentGenerator {
    * @public
    */
   generateOfflineCoach(lessonLevel, manualChars = []) {
-    const weakCharacters = ContentGenerator.#getWeakCharacters(this.accuracyData);
+    const weakCharacters = this.accuracyTracker.getWeakCharacters();
     const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet(lessonLevel, manualChars));
 
     const groups = [];
@@ -297,7 +290,7 @@ export class ContentGenerator {
    * @public
    */
   getAICoachPrompt(lessonLevel, manualChars = []) {
-    const weakCharacters = ContentGenerator.#getWeakCharacters(this.accuracyData);
+    const weakCharacters = this.accuracyTracker.getWeakCharacters();
     const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet(lessonLevel, manualChars));
     const allUnlockedCharacters = Array.from(this.getUnlockedSet(lessonLevel, manualChars)).join(', ');
 
@@ -351,7 +344,7 @@ export class ContentGenerator {
    * @public
    */
   generateCoachBatch(batchSize, lessonLevel, manualChars = []) {
-    const weakCharacters = ContentGenerator.#getWeakCharacters(this.accuracyData);
+    const weakCharacters = this.accuracyTracker.getWeakCharacters();
     const hasWeakChars = weakCharacters.length > 0;
 
     const batch = [];

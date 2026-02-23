@@ -20,17 +20,14 @@ import {
   DEFAULT_SETTINGS,
   SETTINGS_RANGES,
   COMMON_ABBR,
-  Q_CODES,
-  PHRASES,
-  DICTIONARY,
   PLAYBACK_DELAYS,
   DEFAULT_STATS
 } from './constants.js';
 import {
-  calculateAccuracyPercentage,
   formatTimeElapsed,
   createDebounced
 } from './utils.js';
+import { AccuracyTracker } from './accuracy-tracker.js';
 import { AudioSynthesizer } from './audio-synthesizer.js';
 import { StateManager } from './state-manager.js';
 import { ContentGenerator } from './content-generator.js';
@@ -64,7 +61,9 @@ export class MorseTrainer {
         // Initialize helper services
         this.stateManager = new StateManager();
         this.audioSynthesizer = new AudioSynthesizer(this.stateManager.settings);
-        this.contentGenerator = new ContentGenerator(this.stateManager.stats.accuracy);
+        // Wrap accuracy data in AccuracyTracker for self-documenting interface
+        this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
+        this.contentGenerator = new ContentGenerator(this.accuracyTracker);
         this.aiOperations = new AIOperations(this.stateManager, this.contentGenerator);
 
         // Initialize application state
@@ -706,7 +705,9 @@ export class MorseTrainer {
         this.stateManager.stats.history = this.stateManager.stats.history.slice(0, CONTENT_GENERATION.HISTORY_LIMIT);
         
         // Update content generator's accuracy data
-        this.contentGenerator.updateAccuracyData(this.stateManager.stats.accuracy);
+        // Recreate AccuracyTracker from updated plain object
+        this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
+        this.contentGenerator.updateAccuracyData(this.accuracyTracker);
         this.stateManager.saveStats(); // Save stats immediately, not debounced
 
         // Show feedback
@@ -1138,7 +1139,7 @@ export class MorseTrainer {
         const historyList = this.domCache.query('#history-list');
 
         if (accuracyElement) {
-            const accuracyPercentage = calculateAccuracyPercentage(this.stateManager.stats.accuracy);
+            const accuracyPercentage = new AccuracyTracker(this.stateManager.stats.accuracy).getOverallAccuracy();
             accuracyElement.textContent = accuracyPercentage + '%';
         }
 
