@@ -4,6 +4,8 @@ A modern, adaptive Morse Code training application built with vanilla JavaScript
 
 This project is designed to be **modular**, **zero-dependency**, and **embeddable**.
 
+Access the app [here](https://mhweaver.github.io/morse-master/index.html)
+
 ## Features
 
 * **Adaptive Learning:** Automatically increases difficulty as your accuracy improves.
