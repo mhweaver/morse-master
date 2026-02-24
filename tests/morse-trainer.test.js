@@ -640,12 +640,10 @@ describe('MorseTrainer - Core Functionality', () => {
     });
 
     it('should save settings when toggling autoPlay', () => {
-      // The debounced save function is now used instead of direct save
-      // Check that the setting was updated and will be saved
-      const debouncedSaveSpy = vi.spyOn(trainer, '_debouncedSaveSettings');
+      const saveSettingsSpy = vi.spyOn(trainer.stateManager, 'saveSettings');
       trainer.toggleAutoPlay(true);
       expect(trainer.stateManager.settings.autoPlay).toBe(true);
-      expect(debouncedSaveSpy).toHaveBeenCalled();
+      expect(saveSettingsSpy).toHaveBeenCalled();
     });
   });
 

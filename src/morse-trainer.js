@@ -14,7 +14,6 @@ import {
   UI_FEEDBACK,
   KOCH_LEVELS,
   UI_RENDERING,
-  DEBOUNCE_TIMING,
   CONTENT_GENERATION,
   MODAL_IDENTIFIERS,
   DEFAULT_SETTINGS,
@@ -27,7 +26,6 @@ import {
 import { COMMON_ABBR } from './content-generator.js';
 import {
   formatTimeElapsed,
-  createDebounced,
   deepClone
 } from './utils.js';
 import { AccuracyTracker } from './accuracy-tracker.js';
@@ -94,11 +92,6 @@ export class MorseTrainer {
         // Challenge queue for batch generation
         this.challengeQueue = [];
         this.isCurrentBatchFromNewLevel = false; // Track if batch was generated before level change
-
-        // Create debounced settings save (500ms delay)
-        this._debouncedSaveSettings = createDebounced(() => {
-            this.stateManager.saveSettings();
-        }, DEBOUNCE_TIMING.SETTINGS_SAVE);
 
         // Render Initial DOM Structure
         this.renderStructure();
@@ -1233,7 +1226,7 @@ export class MorseTrainer {
         }
         
         this.renderSettings();
-        this._debouncedSaveSettings(); // Save after UI update
+        this.stateManager.saveSettings();
     }
 
     /**
@@ -1243,7 +1236,7 @@ export class MorseTrainer {
      */
     toggleAutoPlay(newValue) {
         this.stateManager.settings.autoPlay = newValue;
-        this._debouncedSaveSettings();
+        this.stateManager.saveSettings();
     }
 
     /**
