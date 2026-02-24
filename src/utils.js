@@ -32,3 +32,14 @@ export function createDebounced(fn, delayMs) {
     }, delayMs);
   };
 }
+
+/**
+ * Create a deep copy of an object or array using JSON serialization
+ * Safe for objects containing primitives, arrays, and nested objects.
+ * Do not use with objects containing functions, Dates, or circular references.
+ * @param {Object|Array} obj - Object or array to clone
+ * @returns {Object|Array} Deep copy of the input
+ */
+export function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}

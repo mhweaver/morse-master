@@ -52,7 +52,7 @@ export const AUDIO_TIMING = {
   SESSION_GAIN_DISCONNECT: 60,  // ms to wait before disconnecting
   DOT_MULTIPLIER: 1.2,          // dot time = 1.2 / wpm
   DASH_MULTIPLIER: 3,           // dash time = dot time * 3
-  char_SPACE_MULTIPLIER: 3,     // char space in Farnsworth ratio units
+  CHAR_SPACE_MULTIPLIER: 3,     // char space in Farnsworth ratio units
   WORD_SPACE_MULTIPLIER: 7      // word space in Farnsworth ratio units
 };
 

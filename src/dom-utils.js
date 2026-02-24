@@ -5,6 +5,9 @@
 
 export class DOMCache {
   constructor(rootElement) {
+    if (!rootElement) {
+      throw new Error('DOMCache: Root element is required');
+    }
     this.root = rootElement;
     this.cache = new Map();
   }
@@ -14,9 +17,14 @@ export class DOMCache {
    * otherwise queries and caches for future use.
    * @param {string} selector - CSS selector
    * @param {boolean} useCache - Whether to use cache (default true)
-   * @returns {Element|null}
+   * @returns {Element|null} Element if found, null otherwise
    */
   query(selector, useCache = true) {
+    if (!selector || typeof selector !== 'string') {
+      console.warn('DOMCache.query: Invalid selector', selector);
+      return null;
+    }
+
     if (useCache && this.cache.has(selector)) {
       return this.cache.get(selector);
     }
@@ -32,15 +40,20 @@ export class DOMCache {
    * Query all with optional caching
    * @param {string} selector - CSS selector
    * @param {boolean} useCache - Whether to use cache (default false for NodeLists)
-   * @returns {NodeList}
+   * @returns {NodeList} NodeList of elements (empty if none found)
    */
   queryAll(selector, useCache = false) {
+    if (!selector || typeof selector !== 'string') {
+      console.warn('DOMCache.queryAll: Invalid selector', selector);
+      return this.root.querySelectorAll(':none'); // Returns empty NodeList
+    }
+
     if (useCache && this.cache.has(selector)) {
       return this.cache.get(selector);
     }
     
     const elements = this.root.querySelectorAll(selector);
-    if (useCache) {
+    if (useCache && elements.length > 0) {
       this.cache.set(selector, elements);
     }
     return elements;

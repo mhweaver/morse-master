@@ -87,6 +87,8 @@ export class AccuracyTracker {
 
   /**
    * Get raw data object (for storage/serialization)
+   * Note: This returns a shallow copy, not a deep clone. For serialization/storage,
+   * this object can be directly converted to JSON via JSON.stringify().
    * @returns {Object.<string, {correct: number, total: number}>} The underlying data
    * @public
    */

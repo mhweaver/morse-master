@@ -1,14 +1,16 @@
 /**
  * Error Handling Utilities for MorseTrainer
- * Provides consistent error reporting and user feedback
+ * Provides consistent error reporting, validation, and user feedback
  */
 
 export class ErrorHandler {
   /**
    * Log error with context information
    * @param {Error} error - The error object
-   * @param {string} context - What was being attempted
-   * @param {Object} metadata - Additional context data
+   * @param {string} context - What was being attempted (descriptive context)
+   * @param {Object} metadata - Additional context data (optional)
+   * @returns {Object} Logged error structure with timestamp, context, message, and metadata
+   * @static
    */
   static logError(error, context = '', metadata = {}) {
     const timestamp = new Date().toISOString();
@@ -28,10 +30,12 @@ export class ErrorHandler {
   }
 
   /**
-   * Get user-friendly error message
-   * @param {string} errorType - Type of error
-   * @param {Object} details - Error details
-   * @returns {string} User-friendly message
+   * Get user-friendly error message from error type
+   * Handles all known error types with helpful, non-technical descriptions
+   * @param {string} errorType - Type of error (e.g., 'STORAGE_LOAD', 'AI_UNAVAILABLE')
+   * @param {Object} details - Error specific details (e.g., {key: 'wpm', value: 999})
+   * @returns {string} User-friendly error message
+   * @static
    */
   static getUserMessage(errorType, details = {}) {
     const messages = {
@@ -53,9 +57,11 @@ export class ErrorHandler {
   }
 
   /**
-   * Validate settings object
-   * @param {Object} settings - Settings to validate
-   * @returns {Object} {valid: boolean, errors: array}
+   * Validate settings object against acceptable ranges
+   * @param {Object} settings - Settings object to validate
+   * @param {Object} ranges - Validation ranges (min/max for each setting)
+   * @returns {Object} {valid: boolean, errors: string[]} - Validation result with error messages
+   * @static
    */
   static validateSettings(settings, ranges = {}) {
     const errors = [];
@@ -91,9 +97,20 @@ export class ErrorHandler {
   }
 }
 
-/**\n * Wraps AI calls with proper timeout and error handling
+/**
+ * Wraps AI calls with proper timeout and error handling
+ * Provides a clean interface for executing async operations with timeout protection
  */
 export class AICallWrapper {
+  /**
+   * Execute function with timeout protection
+   * @param {Function} fn - Async function to execute
+   * @param {number} timeoutMs - Timeout duration in milliseconds (default 10000)
+   * @param {string} context - Context description for error messages
+   * @returns {Promise} Promise that resolves if fn completes before timeout
+   * @throws {Error} If timeout occurs or fn rejects
+   * @static
+   */
   static async callWithTimeout(fn, timeoutMs = 10000, context = 'AI operation') {
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error(`${context} timed out after ${timeoutMs}ms`)), timeoutMs)
@@ -107,3 +124,4 @@ export class AICallWrapper {
     }
   }
 }
+

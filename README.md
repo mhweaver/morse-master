@@ -283,7 +283,7 @@ See **[THEMING.md](THEMING.md)** for:
 
 ## Testing
 
-This project includes comprehensive automated tests with **97.99% code coverage**.
+This project includes comprehensive automated tests with **301 passing test cases**.
 
 ### Running Tests
 
@@ -303,16 +303,6 @@ npm run test:ui
 # Generate coverage report
 npm run test:coverage
 ```
-
-### Test Coverage
-
-The test suite includes **170 tests** covering:
-
-- **Core Functionality** - Morse code generation, audio playback, challenge generation, answer validation, statistics tracking
-- **UI Behavior** - DOM rendering, event handlers, tab navigation, modal interactions, keyboard shortcuts
-- **Integration** - Complete user workflows, settings persistence, level progression, error handling
-
-**Coverage Metrics**: 97.99% statements | 91.59% branches | 100% functions
 
 See [tests/README.md](tests/README.md) for detailed testing documentation.
 

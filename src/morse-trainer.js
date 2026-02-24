@@ -27,7 +27,8 @@ import {
 import { COMMON_ABBR } from './content-generator.js';
 import {
   formatTimeElapsed,
-  createDebounced
+  createDebounced,
+  deepClone
 } from './utils.js';
 import { AccuracyTracker } from './accuracy-tracker.js';
 import { AudioSynthesizer } from './audio-synthesizer.js';
@@ -1251,7 +1252,7 @@ export class MorseTrainer {
      */
     confirmReset() {
         // Create fresh copies to avoid shared reference issues
-        this.stateManager.stats = JSON.parse(JSON.stringify(DEFAULT_STATS));
+        this.stateManager.stats = deepClone(DEFAULT_STATS);
         this.stateManager.settings.lessonLevel = LEVEL_LIMITS.MIN;
         this.stateManager.settings.manualChars = [];
         this.stateManager.saveStats();

@@ -5,6 +5,7 @@
 
 import { DEFAULT_SETTINGS, DEFAULT_STATS, STORAGE_KEYS, SETTINGS_RANGES } from './constants.js';
 import { ErrorHandler } from './error-handler.js';
+import { deepClone } from './utils.js';
 
 export class StateManager {
   constructor() {
@@ -29,10 +30,10 @@ export class StateManager {
         return loaded;
       }
       // Return a copy to avoid shared reference issues
-      return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+      return deepClone(DEFAULT_SETTINGS);
     } catch (error) {
       ErrorHandler.logError(error, 'Loading settings from localStorage');
-      return JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+      return deepClone(DEFAULT_SETTINGS);
     }
   }
 
@@ -62,10 +63,10 @@ export class StateManager {
         return loaded;
       }
       // Return a copy to avoid shared reference issues
-      return JSON.parse(JSON.stringify(DEFAULT_STATS));
+      return deepClone(DEFAULT_STATS);
     } catch (error) {
       ErrorHandler.logError(error, 'Loading stats from localStorage');
-      return JSON.parse(JSON.stringify(DEFAULT_STATS));
+      return deepClone(DEFAULT_STATS);
     }
   }
 
@@ -139,7 +140,7 @@ export class StateManager {
    * @public
    */
   reset() {
-    this.stats = JSON.parse(JSON.stringify(DEFAULT_STATS));
+    this.stats = deepClone(DEFAULT_STATS);
     this.settings.lessonLevel = 2;
     this.settings.manualChars = [];
   }
@@ -150,7 +151,7 @@ export class StateManager {
    * @public
    */
   getSettings() {
-    return JSON.parse(JSON.stringify(this.settings));
+    return deepClone(this.settings);
   }
 
   /**
@@ -159,6 +160,6 @@ export class StateManager {
    * @public
    */
   getStats() {
-    return JSON.parse(JSON.stringify(this.stats));
+    return deepClone(this.stats);
   }
 }

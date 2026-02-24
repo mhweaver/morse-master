@@ -1,11 +1,20 @@
 /**
  * AudioSynthesizer - Handles Morse code audio synthesis
  * Encapsulates Web Audio API operations for generating morse code sounds
+ * Supports Farnsworth timing for realistic training experience
  */
 
 import { MORSE_LIB, AUDIO_TIMING } from './constants.js';
 
 export class AudioSynthesizer {
+  /**
+   * Initialize synthesizer with audio settings
+   * @param {Object} settings - Audio settings object
+   * @param {number} settings.wpm - Character speed in words per minute (15-45)
+   * @param {number} settings.farnsworthWpm - Farnsworth timing speed (5-45)
+   * @param {number} settings.frequency - Tone frequency in Hz (300-1200)
+   * @param {number} settings.volume - Volume from 0.0 to 1.0
+   */
   constructor(settings = {}) {
     this.audioCtx = null;
     this.sessionGain = null;
@@ -21,7 +30,9 @@ export class AudioSynthesizer {
 
   /**
    * Get or create Web Audio API context
+   * Lazily initializes single shared audio context for performance
    * @returns {AudioContext} The audio context instance
+   * @throws {Error} If Web Audio API is not supported
    * @private
    */
   getAudioContext() {
@@ -32,8 +43,10 @@ export class AudioSynthesizer {
   }
 
   /**
-   * Update audio settings
-   * @param {Object} newSettings - Settings to update
+   * Update audio settings and apply to future playback
+   * Changes take effect on next play() call
+   * @param {Object} newSettings - Partial settings object to update
+   * @public
    */
   updateSettings(newSettings) {
     this.settings = { ...this.settings, ...newSettings };
@@ -41,6 +54,7 @@ export class AudioSynthesizer {
 
   /**
    * Stop current audio playback and clean up audio resources
+   * Safely terminates running audio context nodes
    * @public
    */
   stop() {
@@ -61,10 +75,15 @@ export class AudioSynthesizer {
 
   /**
    * Play Morse code audio for given text using Web Audio API
-   * Synthesizes sine wave with Farnsworth timing
-   * @param {string} text - Text to convert to Morse code and play
-   * @param {Function} onComplete - Optional callback when playback completes
-   * @returns {Promise<void>}
+   * Generates and plays morse code patterns using sine wave synthesis.
+   * Uses Farnsworth timing: characters are sent at high speed (wpm) but 
+   * spaced out at lower speed (farnsworthWpm) to aid learning.
+   * 
+   * If already playing, stops current playback before starting new playback.
+   * @param {string} text - Text to convert to Morse code and play (e.g., "HELLO")
+   * @param {Function} onComplete - Optional callback function when playback completes
+   * @returns {Promise<void>} Resolves when playback setup is complete
+   * @throws {Error} If audio context creation fails
    * @public
    */
   async play(text, onComplete = null) {
@@ -86,7 +105,7 @@ export class AudioSynthesizer {
     const dotTime = AUDIO_TIMING.DOT_MULTIPLIER / this.settings.wpm;
     const dashTime = dotTime * AUDIO_TIMING.DASH_MULTIPLIER;
     const fRatio = AUDIO_TIMING.DOT_MULTIPLIER / this.settings.farnsworthWpm;
-    const charSpace = fRatio * AUDIO_TIMING.char_SPACE_MULTIPLIER;
+    const charSpace = fRatio * AUDIO_TIMING.CHAR_SPACE_MULTIPLIER;
     const wordSpace = fRatio * AUDIO_TIMING.WORD_SPACE_MULTIPLIER;
 
     for (const char of text.toUpperCase().split('')) {
