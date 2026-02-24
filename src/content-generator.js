@@ -519,7 +519,6 @@ export class ContentGenerator {
     let challenge = '';
     let meaning = '';
     
-    // Phase 3: Track weak characters for session feedback
     const weakChars = this.accuracyTracker.getWeakCharacters();
 
     if (useRealContent) {

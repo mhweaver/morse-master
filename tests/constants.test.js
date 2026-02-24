@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { DIFFICULTY_PRESETS } from '../src/constants.js';
 
-describe('Constants - Difficulty Presets (Phase 3.3)', () => {
+describe('Constants - Difficulty Presets', () => {
   describe('Difficulty Preset Structure', () => {
     it('should have 5 difficulty presets', () => {
       expect(Object.keys(DIFFICULTY_PRESETS)).toHaveLength(5);

@@ -293,7 +293,6 @@ export class MorseTrainer {
                             </div>
                         </div>
 
-                        <!-- PHASE 4: SESSION SUMMARY -->
                         <div id="session-summary-card" class="mt-card hidden">
                             <h3 id="session-summary-title">📊 This Session</h3>
                             <div class="mt-session-summary">
@@ -860,7 +859,6 @@ export class MorseTrainer {
         this.dom.inputs.user.value = '';
         this.dom.displays.feedback.classList.add('hidden');
         
-        // Phase 3: Track weak characters used in this challenge
         if (result.weakChars && result.weakChars.length > 0) {
             // Ensure sessionMetrics exists
             if (!this.stateManager.stats.sessionMetrics) {
@@ -879,8 +877,8 @@ export class MorseTrainer {
         );
         
         this.renderSubmitButton();
-        this.renderDifficultyDisplay(); // Show difficulty for this challenge
-        this.updateWeakCharacterFeedback(); // Phase 3: Show weak char feedback
+        this.renderDifficultyDisplay();
+        this.updateWeakCharacterFeedback();
 
         if (playNow) setTimeout(() => this.playMorse(this.currentChallenge), 100);
     }
@@ -905,10 +903,7 @@ export class MorseTrainer {
                 this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
             }
             
-            // Phase 3 & 4: Reset session tracking
             this.stateManager.stats.sessionMetrics.weakCharsFocused = [];
-            
-            // Phase 4: Save session start accuracy for comparison later
             this.stateManager.stats.sessionMetrics.sessionStartAccuracy = {};
             Object.keys(this.stateManager.stats.accuracy).forEach(char => {
                 const stats = this.stateManager.stats.accuracy[char];
@@ -1487,7 +1482,7 @@ export class MorseTrainer {
     }
 
     /**
-     * Phase 3.2: Update weak character emphasis feedback
+     * Update weak character emphasis feedback
      * Shows which weak characters are being emphasized this session
      * @private
      */
@@ -1620,7 +1615,6 @@ export class MorseTrainer {
             historyList.appendChild(fragment);
         }
 
-        // Phase 4.2: Render session summary
         this.renderSessionSummary();
 
         // Render character mastery breakdown
@@ -1628,7 +1622,7 @@ export class MorseTrainer {
     }
 
     /**
-     * Phase 4.2: Render session summary with improvements
+     * Render session summary with improvements
      * @private
      */
     renderSessionSummary() {

@@ -895,8 +895,8 @@ describe('MorseTrainer - Core Functionality', () => {
     });
   });
 
-  describe('Phase 3 & 4 Features', () => {
-    describe('Weak Character Tracking (Phase 3.2)', () => {
+  describe('Tracking and Difficulty Features', () => {
+    describe('Weak Character Tracking', () => {
       it('should initialize sessionMetrics with weakCharsFocused array', () => {
         const stats = trainer.stateManager.stats;
         expect(stats.sessionMetrics).toBeDefined();
@@ -962,7 +962,7 @@ describe('MorseTrainer - Core Functionality', () => {
       });
     });
 
-    describe('Session Summary (Phase 4.2)', () => {
+    describe('Session Summary', () => {
       it('should initialize sessionStartAccuracy on new day', () => {
         trainer.stateManager.stats.accuracy = {
           'E': { correct: 50, total: 100 },
@@ -1086,7 +1086,7 @@ describe('MorseTrainer - Core Functionality', () => {
       });
     });
 
-    describe('Difficulty Preset Descriptions (Phase 3.3)', () => {
+    describe('Difficulty Preset Descriptions', () => {
       it('should return correct difficulty label', () => {
         expect(trainer._getDifficultyLabel(1)).toBe('Very Slow');
         expect(trainer._getDifficultyLabel(2)).toBe('Slow');

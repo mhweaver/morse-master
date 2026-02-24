@@ -30,8 +30,8 @@ export const DEFAULT_STATS = {
   sessionMetrics: {
     challengesInSession: 0,
     lastSessionDate: null,
-    weakCharsFocused: [], // Phase 3: Track weak chars emphasized this session
-    sessionStartAccuracy: {} // Phase 4: Track starting accuracy to show improvement
+    weakCharsFocused: [],
+    sessionStartAccuracy: {}
   }
 };
 

@@ -343,7 +343,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     });
   });
 
-  describe('Weak Character Tracking (Phase 3)', () => {
+  describe('Weak Character Tracking', () => {
     it('should return weakChars array in generateChallenge result', () => {
       const result = generator.generateChallenge(5, []);
       
