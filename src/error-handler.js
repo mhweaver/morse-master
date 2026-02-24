@@ -15,7 +15,7 @@ export class ErrorHandler {
   static logError(error, context = '', metadata = {}) {
     const timestamp = new Date().toISOString();
     const message = `[${timestamp}] ${context}: ${error.message}`;
-    
+
     console.error(message, {
       stack: error.stack,
       ...metadata

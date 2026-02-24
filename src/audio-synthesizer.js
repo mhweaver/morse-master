@@ -76,9 +76,9 @@ export class AudioSynthesizer {
   /**
    * Play Morse code audio for given text using Web Audio API
    * Generates and plays morse code patterns using sine wave synthesis.
-   * Uses Farnsworth timing: characters are sent at high speed (wpm) but 
+   * Uses Farnsworth timing: characters are sent at high speed (wpm) but
    * spaced out at lower speed (farnsworthWpm) to aid learning.
-   * 
+   *
    * If already playing, stops current playback before starting new playback.
    * @param {string} text - Text to convert to Morse code and play (e.g., "HELLO")
    * @param {Function} onComplete - Optional callback function when playback completes
@@ -91,12 +91,16 @@ export class AudioSynthesizer {
       this.stop();
       return;
     }
-    if (!text) return;
+    if (!text) {
+      return;
+    }
 
     this.isPlaying = true;
 
     const ctx = this.getAudioContext();
-    if (ctx.state === 'suspended') await ctx.resume();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
 
     this.sessionGain = ctx.createGain();
     this.sessionGain.connect(ctx.destination);
@@ -114,7 +118,9 @@ export class AudioSynthesizer {
         continue;
       }
       const pattern = MORSE_LIB[char];
-      if (!pattern) continue;
+      if (!pattern) {
+        continue;
+      }
 
       for (let j = 0; j < pattern.length; j++) {
         const symbol = pattern[j];
@@ -136,7 +142,9 @@ export class AudioSynthesizer {
         oscillator.stop(currentTime + duration);
 
         currentTime += duration;
-        if (j < pattern.length - 1) currentTime += dotTime;
+        if (j < pattern.length - 1) {
+          currentTime += dotTime;
+        }
       }
       currentTime += charSpace;
     }
@@ -144,7 +152,9 @@ export class AudioSynthesizer {
     this.playbackTimeout = setTimeout(() => {
       this.isPlaying = false;
       this.sessionGain = null;
-      if (onComplete) onComplete();
+      if (onComplete) {
+        onComplete();
+      }
     }, (currentTime - ctx.currentTime) * 1000);
   }
 
@@ -164,7 +174,9 @@ export class AudioSynthesizer {
     this.isPlaying = true;
 
     const ctx = this.getAudioContext();
-    if (ctx.state === 'suspended') await ctx.resume();
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
 
     this.sessionGain = ctx.createGain();
     this.sessionGain.connect(ctx.destination);
@@ -199,7 +211,9 @@ export class AudioSynthesizer {
     this.playbackTimeout = setTimeout(() => {
       this.isPlaying = false;
       this.sessionGain = null;
-      if (onComplete) onComplete();
+      if (onComplete) {
+        onComplete();
+      }
     }, totalDuration * 1000);
   }
 

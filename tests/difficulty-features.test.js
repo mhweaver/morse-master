@@ -28,7 +28,7 @@ describe('Difficulty-Based Challenge Generation', () => {
   describe('generateChallengeForDifficulty', () => {
     it('should generate challenges at specified difficulty level', () => {
       const result = generator.generateChallengeForDifficulty(5, 10, []);
-      
+
       expect(result).toHaveProperty('challenge');
       expect(result).toHaveProperty('meaning');
       expect(result).toHaveProperty('difficulty');
@@ -39,7 +39,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should generate easier challenges for low difficulty', () => {
       const easy1 = generator.generateChallengeForDifficulty(1, 5, []);
       const easy2 = generator.generateChallengeForDifficulty(2, 5, []);
-      
+
       // Easy challenges should be short
       expect(easy1.challenge.replace(/\s/g, '').length).toBeLessThan(5);
       expect(easy2.challenge.replace(/\s/g, '').length).toBeLessThan(5);
@@ -47,7 +47,7 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should generate harder challenges for high difficulty', () => {
       const hard = generator.generateChallengeForDifficulty(8, 15, []);
-      
+
       // Hard challenges likely to be longer or more complex
       expect(hard.challenge.length).toBeGreaterThan(3);
     });
@@ -55,7 +55,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should clamp difficulty to valid range', () => {
       const tooLow = generator.generateChallengeForDifficulty(-5, 10, []);
       const tooHigh = generator.generateChallengeForDifficulty(50, 10, []);
-      
+
       expect(tooLow.difficulty).toBeGreaterThanOrEqual(DIFFICULTY.DIFFICULTY_SCALE_MIN);
       expect(tooHigh.difficulty).toBeLessThanOrEqual(DIFFICULTY.DIFFICULTY_SCALE_MAX);
     });
@@ -64,7 +64,7 @@ describe('Difficulty-Based Challenge Generation', () => {
       const lessonLevel = 5; // K, M, R, S, U
       const result = generator.generateChallengeForDifficulty(5, lessonLevel, []);
       const unlockedChars = ['K', 'M', 'R', 'S', 'U'];
-      
+
       const challengeChars = result.challenge.split('').filter(c => c !== ' ');
       challengeChars.forEach(char => {
         expect(unlockedChars.includes(char)).toBe(true);
@@ -73,12 +73,12 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should generate varied challenges at same difficulty', () => {
       const challenges = new Set();
-      
+
       for (let i = 0; i < 20; i++) {
         const result = generator.generateChallengeForDifficulty(5, 10, []);
         challenges.add(result.challenge);
       }
-      
+
       // Should have some variety
       expect(challenges.size).toBeGreaterThan(5);
     });
@@ -86,7 +86,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should use weak characters in generated challenges', () => {
       // S and U are weak in our test data
       let hasWeakChar = false;
-      
+
       for (let i = 0; i < 20; i++) {
         const result = generator.generateChallengeForDifficulty(5, 6, []);
         if (result.challenge.includes('S') || result.challenge.includes('U')) {
@@ -94,7 +94,7 @@ describe('Difficulty-Based Challenge Generation', () => {
           break;
         }
       }
-      
+
       expect(hasWeakChar).toBe(true);
     });
   });
@@ -102,14 +102,14 @@ describe('Difficulty-Based Challenge Generation', () => {
   describe('generateProgressiveBatch', () => {
     it('should generate a batch of challenges', () => {
       const batch = generator.generateProgressiveBatch(10, 10, [], 3);
-      
+
       expect(Array.isArray(batch)).toBe(true);
       expect(batch.length).toBe(10);
     });
 
     it('should include challenge metadata in batch', () => {
       const batch = generator.generateProgressiveBatch(5, 10, [], 4);
-      
+
       batch.forEach(item => {
         expect(item).toHaveProperty('challenge');
         expect(item).toHaveProperty('meaning');
@@ -120,7 +120,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should start at specified difficulty', () => {
       const startDiff = 3;
       const batch = generator.generateProgressiveBatch(10, 10, [], startDiff);
-      
+
       // First few challenges should be near starting difficulty
       const firstFew = batch.slice(0, 3);
       firstFew.forEach(item => {
@@ -135,16 +135,16 @@ describe('Difficulty-Based Challenge Generation', () => {
         'M': { correct: 95, incorrect: 5, total: 100 },
         'R': { correct: 95, incorrect: 5, total: 100 }
       };
-      
+
       const batch = generator.generateProgressiveBatch(10, 5, [], 3);
-      
+
       // Later challenges should have higher difficulty on average
       const firstHalf = batch.slice(0, 5).map(b => b.difficulty);
       const secondHalf = batch.slice(5).map(b => b.difficulty);
-      
+
       const avgFirst = firstHalf.reduce((a, b) => a + b, 0) / firstHalf.length;
       const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
-      
+
       // Second half might be harder (or at least not easier)
       expect(avgSecond).toBeGreaterThanOrEqual(avgFirst - 1);
     });
@@ -152,7 +152,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should generate batch with varied challenges', () => {
       const batch = generator.generateProgressiveBatch(15, 10, [], 5);
       const uniqueChallenges = new Set(batch.map(b => b.challenge));
-      
+
       // Should have variety
       expect(uniqueChallenges.size).toBeGreaterThan(5);
     });
@@ -170,7 +170,7 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should generate challenge for new character', () => {
       const result = generator.generateNewCharacterChallenge('V', 5, []);
-      
+
       expect(result).toHaveProperty('challenge');
       expect(result).toHaveProperty('meaning');
       expect(result).toHaveProperty('difficulty');
@@ -180,16 +180,16 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should start with isolated character for 0 attempts', () => {
       const result = generator.generateNewCharacterChallenge('V', 5, []);
-      
+
       // With 0 attempts, should get just the character
       expect(result.challenge).toBe('V');
     });
 
     it('should progress to pairs after initial attempts', () => {
       tracker.data['V'] = { correct: 2, incorrect: 1, total: 3 };
-      
+
       const result = generator.generateNewCharacterChallenge('V', 5, []);
-      
+
       // Should have character repeated or in pairs
       expect(result.challenge.includes('V')).toBe(true);
       expect(result.challenge.length).toBeGreaterThan(1);
@@ -200,9 +200,9 @@ describe('Difficulty-Based Challenge Generation', () => {
       // Mark V as weak so it has 3x weighting in generation
       tracker.data['V'] = { correct: 11, incorrect: 4, total: 15 };
       tracker.data['K'] = { correct: 100, incorrect: 0, total: 100 }; // Strong char for contrast
-      
+
       const result = generator.generateNewCharacterChallenge('V', 5, ['V']);
-      
+
       // Should be more complex integration with multiple groups
       expect(result.challenge.split(' ').length).toBeGreaterThanOrEqual(2);
       expect(result.challenge.length).toBeGreaterThanOrEqual(5); // Multiple char groups
@@ -210,16 +210,16 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should include focus char in meaning', () => {
       const result = generator.generateNewCharacterChallenge('V', 5, []);
-      
+
       expect(result.meaning.includes('V')).toBe(true);
     });
 
     it('should calculate realistic difficulty', () => {
       const result = generator.generateNewCharacterChallenge('V', 5, []);
-      
+
       expect(result.difficulty).toBeGreaterThanOrEqual(DIFFICULTY.DIFFICULTY_SCALE_MIN);
       expect(result.difficulty).toBeLessThanOrEqual(DIFFICULTY.DIFFICULTY_SCALE_MAX);
-      
+
       // New character should be easier
       expect(result.difficulty).toBeLessThan(6);
     });
@@ -228,7 +228,7 @@ describe('Difficulty-Based Challenge Generation', () => {
   describe('getDifficultyMetrics', () => {
     it('should return difficulty metrics', () => {
       const metrics = generator.getDifficultyMetrics(10, [], 5);
-      
+
       expect(metrics).toHaveProperty('currentLevel');
       expect(metrics).toHaveProperty('recommended');
       expect(metrics).toHaveProperty('weak');
@@ -240,7 +240,7 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should identify weak characters', () => {
       const metrics = generator.getDifficultyMetrics(6, [], 5);
-      
+
       // S and U are weak in our test data
       expect(metrics.weak).toContain('S');
       expect(metrics.weak).toContain('U');
@@ -248,14 +248,14 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should identify strong characters', () => {
       const metrics = generator.getDifficultyMetrics(6, [], 5);
-      
+
       // K is strong in our test data
       expect(metrics.strong).toContain('K');
     });
 
     it('should provide recommendation', () => {
       const metrics = generator.getDifficultyMetrics(10, [], 5);
-      
+
       expect(typeof metrics.recommended).toBe('number');
       expect(metrics.recommended).toBeGreaterThanOrEqual(1);
       expect(metrics.recommended).toBeLessThanOrEqual(10);
@@ -263,7 +263,7 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should calculate overall accuracy', () => {
       const metrics = generator.getDifficultyMetrics(10, [], 5);
-      
+
       expect(typeof metrics.overallAccuracy).toBe('number');
       expect(metrics.overallAccuracy).toBeGreaterThanOrEqual(0);
       expect(metrics.overallAccuracy).toBeLessThanOrEqual(100);
@@ -272,7 +272,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should count unlocked characters', () => {
       const lessonLevel = 10;
       const metrics = generator.getDifficultyMetrics(lessonLevel, [], 5);
-      
+
       expect(metrics.unlockedCount).toBe(lessonLevel);
     });
 
@@ -280,7 +280,7 @@ describe('Difficulty-Based Challenge Generation', () => {
       const lessonLevel = 5;
       const manualChars = ['X', 'Y', 'Z'];
       const metrics = generator.getDifficultyMetrics(lessonLevel, manualChars, 5);
-      
+
       expect(metrics.unlockedCount).toBe(lessonLevel + manualChars.length);
     });
   });
@@ -292,7 +292,7 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should update difficulty preference', () => {
       generator.updateDifficultyPreference(1); // Very Slow
-      
+
       expect(generator.difficultyCalculator.difficultyConfig).toBeDefined();
       // Config should reflect Very Slow preset
       expect(generator.difficultyCalculator.difficultyConfig.name).toBe('Very Slow');
@@ -300,7 +300,7 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should use difficulty calculator for challenge generation', () => {
       const result = generator.generateChallengeForDifficulty(6, 10, []);
-      
+
       // The generated difficulty should be calculated by DifficultyCalculator
       expect(typeof result.difficulty).toBe('number');
     });
@@ -309,7 +309,7 @@ describe('Difficulty-Based Challenge Generation', () => {
   describe('Edge Cases', () => {
     it('should handle empty unlocked character set gracefully', () => {
       const result = generator.generateChallengeForDifficulty(5, 0, []);
-      
+
       // Should still return a valid structure
       expect(result).toHaveProperty('challenge');
       expect(result).toHaveProperty('difficulty');
@@ -317,26 +317,26 @@ describe('Difficulty-Based Challenge Generation', () => {
 
     it('should handle very high lesson levels', () => {
       const result = generator.generateChallengeForDifficulty(5, 40, []);
-      
+
       expect(result.challenge.length).toBeGreaterThan(0);
     });
 
     it('should handle batch size of 1', () => {
       const batch = generator.generateProgressiveBatch(1, 10, [], 5);
-      
+
       expect(batch.length).toBe(1);
       expect(batch[0]).toHaveProperty('challenge');
     });
 
     it('should handle large batch sizes', () => {
       const batch = generator.generateProgressiveBatch(50, 10, [], 5);
-      
+
       expect(batch.length).toBe(50);
     });
 
     it('should handle new character that does not exist in tracker', () => {
       const result = generator.generateNewCharacterChallenge('Z', 15, []);
-      
+
       // Should still generate a challenge
       expect(result.challenge).toBeDefined();
       expect(result.challenge.includes('Z')).toBe(true);
@@ -346,7 +346,7 @@ describe('Difficulty-Based Challenge Generation', () => {
   describe('Weak Character Tracking', () => {
     it('should return weakChars array in generateChallenge result', () => {
       const result = generator.generateChallenge(5, []);
-      
+
       expect(result).toHaveProperty('weakChars');
       expect(Array.isArray(result.weakChars)).toBe(true);
     });
@@ -354,7 +354,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should identify weak characters from accuracy tracker', () => {
       // S (40%) and U (50%) are weak characters in our test data
       const result = generator.generateChallenge(6, []); // Include S and U
-      
+
       expect(result.weakChars).toBeDefined();
       // Weak characters should include S and U
       expect(result.weakChars.length).toBeGreaterThan(0);
@@ -363,7 +363,7 @@ describe('Difficulty-Based Challenge Generation', () => {
     it('should include weak characters in synthetic challenges', () => {
       // Force synthetic challenge by testing multiple times
       let foundWeakChar = false;
-      
+
       for (let i = 0; i < 20; i++) {
         const result = generator.generateChallenge(6, []);
         // S and U are weak in our test data
@@ -372,7 +372,7 @@ describe('Difficulty-Based Challenge Generation', () => {
           break;
         }
       }
-      
+
       expect(foundWeakChar).toBe(true);
     });
 
@@ -384,10 +384,10 @@ describe('Difficulty-Based Challenge Generation', () => {
         'M': { correct: 95, incorrect: 5, total: 100 },
         'R': { correct: 95, incorrect: 5, total: 100 }
       };
-      
+
       const strongGen = new ContentGenerator(strongTracker, 3, '');
       const result = strongGen.generateChallenge(3, []);
-      
+
       expect(result.weakChars).toBeDefined();
       expect(Array.isArray(result.weakChars)).toBe(true);
     });
@@ -400,10 +400,10 @@ describe('Difficulty-Based Challenge Generation', () => {
         'M': { correct: 90, incorrect: 10, total: 100 },  // Strong
         'S': { correct: 45, incorrect: 55, total: 100 }   // Weak (<60%)
       };
-      
+
       const mixedGen = new ContentGenerator(mixedTracker, 3, '');
       const result = mixedGen.generateChallenge(3, []);
-      
+
       // Should identify S as weak
       expect(result.weakChars).toBeDefined();
       expect(result.weakChars).toContain('S');

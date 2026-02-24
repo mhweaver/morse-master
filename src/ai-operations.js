@@ -75,7 +75,7 @@ export class AIOperations {
    * @param {Function} onError - Callback for errors
    * @public
    */
-  async generateBroadcast(onSuccess, onFallback, onError) {
+  async generateBroadcast(onSuccess, onFallback, _onError) {
     if (!this.stateManager.settings.apiKey && !this.hasBrowserAI) {
       // Offline fallback immediately
       setTimeout(() => {
@@ -139,7 +139,7 @@ export class AIOperations {
    * @param {Function} onError - Callback for errors
    * @public
    */
-  async generateCoach(onSuccess, onFallback, onError) {
+  async generateCoach(onSuccess, onFallback, _onError) {
     if (!this.stateManager.settings.apiKey && !this.hasBrowserAI) {
       // Offline fallback immediately
       setTimeout(() => {
@@ -205,7 +205,7 @@ export class AIOperations {
    * @param {Function} onError - Callback for errors
    * @public
    */
-  async generateBroadcastBatch(batchSize, onSuccess, onFallback, onError) {
+  async generateBroadcastBatch(batchSize, onSuccess, onFallback, _onError) {
     if (!this.stateManager.settings.apiKey && !this.hasBrowserAI) {
       // Offline fallback
       setTimeout(() => {
@@ -224,7 +224,7 @@ export class AIOperations {
       try {
         const session = await this.createAISession();
         const batch = [];
-        
+
         for (let i = 0; i < batchSize; i++) {
           const promptData = this.contentGenerator.getAIBroadcastPrompt(
             this.stateManager.settings.lessonLevel,
@@ -281,7 +281,7 @@ export class AIOperations {
    * @param {Function} onError - Callback for errors
    * @public
    */
-  async generateCoachBatch(batchSize, onSuccess, onFallback, onError) {
+  async generateCoachBatch(batchSize, onSuccess, onFallback, _onError) {
     if (!this.stateManager.settings.apiKey && !this.hasBrowserAI) {
       // Offline fallback
       setTimeout(() => {
@@ -304,7 +304,7 @@ export class AIOperations {
         );
         const session = await this.createAISession();
         const batch = [];
-        
+
         for (let i = 0; i < batchSize; i++) {
           const result = await AICallWrapper.callWithTimeout(
             () => session.prompt(promptData.prompt),

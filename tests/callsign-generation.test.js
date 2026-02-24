@@ -28,7 +28,7 @@ describe('Callsign Generation', () => {
 
     it('should contain valid callsign formats', () => {
       const sampleCallsigns = CALLSIGNS.slice(0, 10);
-      
+
       sampleCallsigns.forEach(callsign => {
         expect(typeof callsign).toBe('string');
         expect(callsign.length).toBeGreaterThan(0);
@@ -42,7 +42,7 @@ describe('Callsign Generation', () => {
     });
 
     it('should include international callsigns', () => {
-      const hasInternational = CALLSIGNS.some(c => 
+      const hasInternational = CALLSIGNS.some(c =>
         c.startsWith('VE') || c.startsWith('G') || c.startsWith('DL')
       );
       expect(hasInternational).toBe(true);
@@ -74,7 +74,7 @@ describe('Callsign Generation', () => {
       const userGen = new ContentGenerator(tracker, 3, 'K1ABC');
       // Use level 40 (all characters) or manually unlock needed chars
       const pool = userGen.getFilteredPool(40, []);
-      
+
       // User callsign should appear multiple times
       const k1abcCount = pool.callsigns.filter(c => c === 'K1ABC').length;
       expect(k1abcCount).toBeGreaterThan(5); // Should appear 10 times
@@ -84,7 +84,7 @@ describe('Callsign Generation', () => {
       // Level 2 only has K and M
       const userGen = new ContentGenerator(tracker, 3, 'W2XYZ');
       const pool = userGen.getFilteredPool(2, []);
-      
+
       // W, X, Y, Z not unlocked, so user callsign should not appear
       const w2xyzCount = pool.callsigns.filter(c => c === 'W2XYZ').length;
       expect(w2xyzCount).toBe(0);
@@ -94,10 +94,10 @@ describe('Callsign Generation', () => {
   describe('Callsign Filtering', () => {
     it('should filter callsigns based on unlocked characters', () => {
       const pool = generator.getFilteredPool(5, []); // K, M, R, S, U
-      
+
       expect(pool.callsigns).toBeDefined();
       expect(Array.isArray(pool.callsigns)).toBe(true);
-      
+
       // All callsigns should only use unlocked characters (may be empty at low levels)
       pool.callsigns.forEach(callsign => {
         const chars = callsign.split('');
@@ -109,7 +109,7 @@ describe('Callsign Generation', () => {
 
     it('should have callsigns available at higher levels', () => {
       const pool = generator.getFilteredPool(40, []); // All characters unlocked
-      
+
       // With all characters unlocked, should have many callsigns
       expect(pool.callsigns.length).toBeGreaterThan(0);
     });
@@ -118,7 +118,7 @@ describe('Callsign Generation', () => {
   describe('Callsign in Challenges', () => {
     it('should include callsigns in content pool', () => {
       const pool = generator.getFilteredPool(40, []); // All characters unlocked
-      
+
       expect(pool).toHaveProperty('callsigns');
       expect(pool.callsigns.length).toBeGreaterThan(0);
     });
@@ -126,7 +126,7 @@ describe('Callsign Generation', () => {
     it('should generate callsigns as standalone challenges', () => {
       // Generate many challenges and check if callsigns appear
       let hasCallsign = false;
-      
+
       for (let i = 0; i < 100; i++) {
         const { challenge } = generator.generateChallenge(40, []); // All characters
         if (CALLSIGNS.includes(challenge)) {
@@ -134,23 +134,23 @@ describe('Callsign Generation', () => {
           break;
         }
       }
-      
+
       expect(hasCallsign).toBe(true);
     });
 
     it('should include callsigns in offline broadcasts', () => {
       let hasCallsign = false;
-      
+
       for (let i = 0; i < 30; i++) {
         const { challenge } = generator.generateOfflineBroadcast(40, []); // All characters
         const words = challenge.split(' ');
-        
+
         if (words.some(word => CALLSIGNS.includes(word))) {
           hasCallsign = true;
           break;
         }
       }
-      
+
       expect(hasCallsign).toBe(true);
     });
 
@@ -158,14 +158,14 @@ describe('Callsign Generation', () => {
       const userGen = new ContentGenerator(tracker, 3, 'K1ABC');
       let userCallsignCount = 0;
       const totalChallenges = 200; // Run more challenges for better statistical accuracy
-      
+
       for (let i = 0; i < totalChallenges; i++) {
         const { challenge } = userGen.generateChallenge(40, []); // All characters
         if (challenge.includes('K1ABC')) {
           userCallsignCount++;
         }
       }
-      
+
       // User callsign should appear in at least 3-4% of challenges
       // (With 10x weighting in filtered pool and 5x content type weighting)
       expect(userCallsignCount).toBeGreaterThanOrEqual(3);
@@ -177,7 +177,7 @@ describe('Callsign Generation', () => {
       const stateManager = new StateManager();
       stateManager.settings.userCallsign = 'W1AW';
       stateManager.saveSettings();
-      
+
       const loaded = new StateManager();
       expect(loaded.settings.userCallsign).toBe('W1AW');
     });
@@ -185,7 +185,7 @@ describe('Callsign Generation', () => {
     it('should uppercase callsign when updating setting', () => {
       const stateManager = new StateManager();
       const result = stateManager.updateSetting('userCallsign', 'n2abc');
-      
+
       expect(result.valid).toBe(true);
       expect(stateManager.settings.userCallsign).toBe('N2ABC');
     });
@@ -193,7 +193,7 @@ describe('Callsign Generation', () => {
     it('should trim whitespace from callsign', () => {
       const stateManager = new StateManager();
       stateManager.updateSetting('userCallsign', '  K3LR  ');
-      
+
       expect(stateManager.settings.userCallsign).toBe('K3LR');
     });
   });
@@ -210,11 +210,11 @@ describe('Callsign Generation', () => {
         callsigns: 0,
         synthetic: 0
       };
-      
+
       for (let i = 0; i < 100; i++) {
         const { challenge } = generator.generateChallenge(lessonLevel, []);
         const pool = generator.getFilteredPool(lessonLevel, []);
-        
+
         // Determine content type
         if (pool.callsigns.includes(challenge)) {
           contentTypeCounts.callsigns++;
@@ -232,15 +232,15 @@ describe('Callsign Generation', () => {
           contentTypeCounts.synthetic++;
         }
       }
-      
+
       // Callsigns should appear more frequently than individual other content types
       // (though synthetic will be most common due to 30% probability)
       expect(contentTypeCounts.callsigns).toBeGreaterThan(0);
-      
+
       // Callsigns should be significant portion of real content
       const totalRealContent = Object.values(contentTypeCounts).reduce((a, b) => a + b, 0) - contentTypeCounts.synthetic;
       const callsignPercentage = (contentTypeCounts.callsigns / totalRealContent) * 100;
-      
+
       // With 5x weighting, callsigns should be a large percentage
       expect(callsignPercentage).toBeGreaterThan(20);
     });

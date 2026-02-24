@@ -8,7 +8,7 @@ import { CONTENT_GENERATION } from './constants.js';
 /**
  * Tracks accuracy statistics for individual characters.
  * Maps each character to { correct: number, total: number }.
- * 
+ *
  * @example
  * const tracker = new AccuracyTracker();
  * tracker.recordAttempt('A', true);   // Correct attempt

@@ -28,7 +28,7 @@ export class DOMCache {
     if (useCache && this.cache.has(selector)) {
       return this.cache.get(selector);
     }
-    
+
     const element = this.root.querySelector(selector);
     if (element && useCache) {
       this.cache.set(selector, element);
@@ -51,7 +51,7 @@ export class DOMCache {
     if (useCache && this.cache.has(selector)) {
       return this.cache.get(selector);
     }
-    
+
     const elements = this.root.querySelectorAll(selector);
     if (useCache && elements.length > 0) {
       this.cache.set(selector, elements);
@@ -115,12 +115,14 @@ export class DOMBatch {
   static rebuild(container, items, renderFn) {
     // Use fragment to avoid multiple reflows
     const fragment = document.createDocumentFragment();
-    
+
     items.forEach((item, idx) => {
       const element = renderFn(item, idx);
-      if (element) fragment.appendChild(element);
+      if (element) {
+        fragment.appendChild(element);
+      }
     });
-    
+
     // Single operation: clear and append
     container.innerHTML = '';
     container.appendChild(fragment);
@@ -133,7 +135,11 @@ export class DOMBatch {
    * @param {string} classToRemove - Class to remove
    */
   static toggleClasses(element, classToAdd, classToRemove) {
-    if (classToRemove) element.classList.remove(...classToRemove.split(' '));
-    if (classToAdd) element.classList.add(...classToAdd.split(' '));
+    if (classToRemove) {
+      element.classList.remove(...classToRemove.split(' '));
+    }
+    if (classToAdd) {
+      element.classList.add(...classToAdd.split(' '));
+    }
   }
 }

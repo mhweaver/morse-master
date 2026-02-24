@@ -34,14 +34,14 @@ describe('MorseTrainer - Core Functionality', () => {
         volume: 0.5,
         lessonLevel: 2,
         autoLevel: true,
-        autoPlay: true,
+        autoPlay: true
       });
     });
 
     it('should initialize with empty stats', () => {
       expect(trainer.stateManager.stats).toMatchObject({
         history: [],
-        accuracy: {},
+        accuracy: {}
       });
     });
 
@@ -58,7 +58,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should save settings to localStorage', () => {
       trainer.stateManager.settings.wpm = 25;
       trainer.stateManager.saveSettings();
-      
+
       const saved = JSON.parse(localStorage.getItem('morse-settings-v3'));
       expect(saved.wpm).toBe(25);
     });
@@ -73,23 +73,23 @@ describe('MorseTrainer - Core Functionality', () => {
         autoLevel: false,
         autoPlay: false,
         apiKey: 'test-key',
-        manualChars: ['A', 'B'],
+        manualChars: ['A', 'B']
       };
       localStorage.setItem('morse-settings-v3', JSON.stringify(customSettings));
-      
+
       const newContainer = document.createElement('div');
       document.body.appendChild(newContainer);
       const newTrainer = new MorseTrainer(newContainer);
-      
+
       expect(newTrainer.stateManager.settings).toMatchObject(customSettings);
-      
+
       document.body.removeChild(newContainer);
     });
 
     it('should update individual settings', () => {
       trainer.stateManager.updateSetting('wpm', 35);
       expect(trainer.stateManager.settings.wpm).toBe(35);
-      
+
       trainer.stateManager.updateSetting('frequency', 700);
       expect(trainer.stateManager.settings.frequency).toBe(700);
     });
@@ -104,7 +104,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should save stats to localStorage', () => {
       trainer.stateManager.stats.history.push({ challenge: 'TEST', correct: true });
       trainer.stateManager.saveStats();
-      
+
       const saved = JSON.parse(localStorage.getItem('morse-stats-v2'));
       expect(saved.history).toHaveLength(1);
       expect(saved.history[0].challenge).toBe('TEST');
@@ -113,17 +113,17 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should load stats from localStorage', () => {
       const customStats = {
         history: [{ challenge: 'ABC', correct: true, timestamp: 123456 }],
-        accuracy: { A: { correct: 5, total: 10 } },
+        accuracy: { A: { correct: 5, total: 10 } }
       };
       localStorage.setItem('morse-stats-v2', JSON.stringify(customStats));
-      
+
       const newContainer = document.createElement('div');
       document.body.appendChild(newContainer);
       const newTrainer = new MorseTrainer(newContainer);
-      
+
       expect(newTrainer.stateManager.stats.history).toHaveLength(1);
       expect(newTrainer.stateManager.stats.accuracy.A).toEqual({ correct: 5, total: 10 });
-      
+
       document.body.removeChild(newContainer);
     });
 
@@ -132,7 +132,7 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.stateManager.stats.accuracy = { T: { correct: 1, total: 1 } };
       trainer.stateManager.settings.lessonLevel = 10;
       trainer.stateManager.settings.manualChars = ['X', 'Y'];
-      
+
       // Set up session stats
       trainer.stateManager.stats.sessionMetrics = {
         challengesInSession: 5,
@@ -142,14 +142,14 @@ describe('MorseTrainer - Core Functionality', () => {
       };
       trainer.sessionChallengesCount = 5;
       trainer.lastSessionDateIso = '2026-01-01';
-      
+
       trainer.confirmReset();
-      
+
       expect(trainer.stateManager.stats.history).toEqual([]);
       expect(trainer.stateManager.stats.accuracy).toEqual({});
       expect(trainer.stateManager.settings.lessonLevel).toBe(2);
       expect(trainer.stateManager.settings.manualChars).toEqual([]);
-      
+
       // Verify session stats are cleared
       expect(trainer.stateManager.stats.sessionMetrics).toEqual({
         challengesInSession: 0,
@@ -170,15 +170,15 @@ describe('MorseTrainer - Core Functionality', () => {
         sessionStartAccuracy: { E: 0.5 }
       };
       trainer.sessionChallengesCount = 10;
-      
+
       // Render to show session summary
       trainer.renderSessionSummary();
       const sessionCard = trainer.domCache.query('#session-summary-card');
       expect(sessionCard?.classList.contains('hidden')).toBe(false);
-      
+
       // Wipe progress
       trainer.confirmReset();
-      
+
       // Verify session summary is now hidden (because challengesInSession = 0)
       const sessionCardAfter = trainer.domCache.query('#session-summary-card');
       expect(sessionCardAfter?.classList.contains('hidden')).toBe(true);
@@ -189,7 +189,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should get unlocked character set based on level', () => {
       trainer.stateManager.settings.lessonLevel = 4;
       trainer.stateManager.settings.manualChars = [];
-      
+
       const unlocked = trainer.contentGenerator.getUnlockedSet(
         trainer.stateManager.settings.lessonLevel,
         trainer.stateManager.settings.manualChars
@@ -204,7 +204,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should include manual chars in unlocked set', () => {
       trainer.stateManager.settings.lessonLevel = 2;
       trainer.stateManager.settings.manualChars = ['X', 'Y'];
-      
+
       const unlocked = trainer.contentGenerator.getUnlockedSet(
         trainer.stateManager.settings.lessonLevel,
         trainer.stateManager.settings.manualChars
@@ -240,20 +240,20 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should update level progress display when changing levels', () => {
       trainer.stateManager.settings.lessonLevel = 5;
       vi.spyOn(trainer, 'renderLevelProgress');
-      
+
       trainer.changeLevel(1);
-      
+
       expect(trainer.renderLevelProgress).toHaveBeenCalled();
     });
 
     it('should toggle manual character on/off', () => {
       trainer.stateManager.settings.lessonLevel = 2;
       trainer.stateManager.settings.manualChars = [];
-      
+
       // Toggle on
       trainer.toggleChar('X');
       expect(trainer.stateManager.settings.manualChars).toContain('X');
-      
+
       // Toggle off
       trainer.toggleChar('X');
       expect(trainer.stateManager.settings.manualChars).not.toContain('X');
@@ -262,7 +262,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should not toggle characters within current level', () => {
       trainer.stateManager.settings.lessonLevel = 5;
       trainer.stateManager.settings.manualChars = [];
-      
+
       // 'K' is index 0, within level 5
       trainer.toggleChar('K');
       expect(trainer.stateManager.settings.manualChars).not.toContain('K');
@@ -300,7 +300,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should only use unlocked characters in synthetic challenges', () => {
       trainer.stateManager.settings.lessonLevel = 3; // K, M, R
       trainer.stateManager.settings.manualChars = [];
-      
+
       // Generate many challenges to test randomness
       for (let i = 0; i < 20; i++) {
         trainer.generateNextChallenge(false);
@@ -323,7 +323,7 @@ describe('MorseTrainer - Core Functionality', () => {
         trainer.stateManager.settings.lessonLevel,
         trainer.stateManager.settings.manualChars
       );
-      
+
       expect(pool).toHaveProperty('words');
       expect(pool).toHaveProperty('abbrs');
       expect(pool).toHaveProperty('qcodes');
@@ -347,7 +347,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should mark correct answer as correct', () => {
       trainer.dom.inputs.user.value = 'test';
       trainer.checkAnswer();
-      
+
       expect(trainer.dom.displays.feedback.textContent).toContain('Correct!');
       expect(trainer.dom.displays.feedback.classList.contains('success')).toBe(true);
     });
@@ -355,7 +355,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should mark incorrect answer as incorrect', () => {
       trainer.dom.inputs.user.value = 'wrong';
       trainer.checkAnswer();
-      
+
       expect(trainer.dom.displays.feedback.textContent).toContain('You: WRONG');
       expect(trainer.dom.displays.feedback.textContent).toContain('Answer: TEST');
       expect(trainer.dom.displays.feedback.classList.contains('error')).toBe(true);
@@ -364,21 +364,21 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should be case insensitive', () => {
       trainer.dom.inputs.user.value = 'TeSt';
       trainer.checkAnswer();
-      
+
       expect(trainer.dom.displays.feedback.classList.contains('success')).toBe(true);
     });
 
     it('should trim whitespace from input', () => {
       trainer.dom.inputs.user.value = '  test  ';
       trainer.checkAnswer();
-      
+
       expect(trainer.dom.displays.feedback.classList.contains('success')).toBe(true);
     });
 
     it('should update stats accuracy for each character', () => {
       trainer.dom.inputs.user.value = 'test';
       trainer.checkAnswer();
-      
+
       // T appears twice in TEST, so it should be correct: 2, total: 2
       expect(trainer.stateManager.stats.accuracy.T).toMatchObject({ correct: 2, total: 2 });
       expect(trainer.stateManager.stats.accuracy.E).toMatchObject({ correct: 1, total: 1 });
@@ -388,22 +388,22 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should add to history on answer check', () => {
       trainer.dom.inputs.user.value = 'test';
       trainer.checkAnswer();
-      
+
       expect(trainer.stateManager.stats.history).toHaveLength(1);
       expect(trainer.stateManager.stats.history[0]).toMatchObject({
         challenge: 'TEST',
         input: 'TEST',
-        correct: true,
+        correct: true
       });
     });
 
     it('should limit history to 100 entries', () => {
       // Fill history with 100 entries
       trainer.stateManager.stats.history = new Array(100).fill({ challenge: 'OLD', correct: true });
-      
+
       trainer.dom.inputs.user.value = 'test';
       trainer.checkAnswer();
-      
+
       expect(trainer.stateManager.stats.history).toHaveLength(100);
       expect(trainer.stateManager.stats.history[0].challenge).toBe('TEST');
       expect(trainer.stateManager.stats.history[99].challenge).toBe('OLD');
@@ -412,20 +412,20 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should not check answer if challenge not played yet', () => {
       trainer.hasPlayedCurrent = false;
       const historyLength = trainer.stateManager.stats.history.length;
-      
+
       trainer.dom.inputs.user.value = 'test';
       trainer.checkAnswer();
-      
+
       expect(trainer.stateManager.stats.history.length).toBe(historyLength);
     });
 
     it('should not check answer while playing', () => {
       trainer.audioSynthesizer.isPlaying = true;
       const historyLength = trainer.stateManager.stats.history.length;
-      
+
       trainer.dom.inputs.user.value = 'test';
       trainer.checkAnswer();
-      
+
       expect(trainer.stateManager.stats.history.length).toBe(historyLength);
     });
 
@@ -434,7 +434,7 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.currentMeaning = 'Location';
       trainer.dom.inputs.user.value = 'qth';
       trainer.checkAnswer();
-      
+
       expect(trainer.dom.displays.feedback.textContent).toContain('(Location)');
     });
 
@@ -442,9 +442,9 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.stateManager.settings.autoPlay = true;
       trainer.dom.inputs.user.value = 'test';
       trainer.checkAnswer();
-      
+
       vi.advanceTimersByTime(1300);
-      
+
       expect(trainer.currentChallenge).not.toBe('TEST');
     });
   });
@@ -460,9 +460,9 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.stateManager.stats.history = new Array(20).fill(null).map(() => ({
         challenge: 'A',
         correct: true,
-        timestamp: Date.now(),
+        timestamp: Date.now()
       }));
-      
+
       trainer.checkAutoLevel();
       expect(trainer.stateManager.settings.lessonLevel).toBe(6);
     });
@@ -471,9 +471,9 @@ describe('MorseTrainer - Core Functionality', () => {
       // Create 20 answers with <60% accuracy
       trainer.stateManager.stats.history = [
         ...new Array(8).fill({ correct: true }),
-        ...new Array(12).fill({ correct: false }),
+        ...new Array(12).fill({ correct: false })
       ];
-      
+
       trainer.checkAutoLevel();
       expect(trainer.stateManager.settings.lessonLevel).toBe(4);
     });
@@ -481,7 +481,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should not change level if not enough history (< 15 entries)', () => {
       trainer.stateManager.stats.history = new Array(10).fill({ correct: true });
       const originalLevel = trainer.stateManager.settings.lessonLevel;
-      
+
       trainer.checkAutoLevel();
       expect(trainer.stateManager.settings.lessonLevel).toBe(originalLevel);
     });
@@ -490,7 +490,7 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.stateManager.settings.autoLevel = false;
       trainer.stateManager.stats.history = new Array(20).fill({ correct: true });
       const originalLevel = trainer.stateManager.settings.lessonLevel;
-      
+
       trainer.checkAutoLevel();
       expect(trainer.stateManager.settings.lessonLevel).toBe(originalLevel);
     });
@@ -498,7 +498,7 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should not decrease below level 2', () => {
       trainer.stateManager.settings.lessonLevel = 2;
       trainer.stateManager.stats.history = new Array(20).fill({ correct: false });
-      
+
       trainer.checkAutoLevel();
       expect(trainer.stateManager.settings.lessonLevel).toBe(2);
     });
@@ -549,10 +549,10 @@ describe('MorseTrainer - Core Functionality', () => {
 
     it('should toggle play/stop correctly', () => {
       expect(trainer.audioSynthesizer.isPlaying).toBe(false);
-      
+
       trainer.togglePlay();
       expect(trainer.audioSynthesizer.isPlaying).toBe(true);
-      
+
       trainer.togglePlay();
       expect(trainer.audioSynthesizer.isPlaying).toBe(false);
     });
@@ -570,8 +570,8 @@ describe('MorseTrainer - Core Functionality', () => {
 
     it('should clear timeout on stopPlayback', () => {
       trainer.playMorse('A');
-      const timeout = trainer.playbackTimeout;
-      
+      const _timeout = trainer.playbackTimeout;
+
       trainer.stopPlayback();
       expect(trainer.audioSynthesizer.playbackTimeout).toBeNull();
     });
@@ -579,10 +579,10 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should disconnect session gain on stopPlayback', () => {
       trainer.playMorse('A');
       const disconnectSpy = vi.spyOn(trainer.audioSynthesizer.sessionGain, 'disconnect');
-      
+
       trainer.stopPlayback();
       vi.advanceTimersByTime(100);
-      
+
       expect(disconnectSpy).toHaveBeenCalled();
     });
 
@@ -595,10 +595,10 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should invoke completion callback when audio finishes', () => {
       const completionSpy = vi.fn();
       trainer.audioSynthesizer.play('A', completionSpy);
-      
+
       // Advance timers past the playback duration
       vi.advanceTimersByTime(5000);
-      
+
       expect(completionSpy).toHaveBeenCalled();
       expect(trainer.audioSynthesizer.isPlaying).toBe(false);
     });
@@ -606,13 +606,13 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should update play button when audio finishes', () => {
       const renderSpy = vi.spyOn(trainer, 'renderPlayButton');
       trainer.playMorse('A');
-      
+
       // Verify button starts as stop button (isPlaying = true)
       expect(trainer.audioSynthesizer.isPlaying).toBe(true);
-      
+
       // Advance timers past playback completion
       vi.advanceTimersByTime(5000);
-      
+
       // Button should be rendered again at completion
       expect(renderSpy).toHaveBeenCalled();
       expect(trainer.audioSynthesizer.isPlaying).toBe(false);
@@ -621,10 +621,10 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should reset isPlaying flag after completion timeout', () => {
       trainer.playMorse('A');
       expect(trainer.audioSynthesizer.isPlaying).toBe(true);
-      
+
       // Advance timers to completion
       vi.advanceTimersByTime(5000);
-      
+
       expect(trainer.audioSynthesizer.isPlaying).toBe(false);
     });
   });
@@ -634,7 +634,7 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.stateManager.settings.autoPlay = false;
       trainer.toggleAutoPlay(true);
       expect(trainer.stateManager.settings.autoPlay).toBe(true);
-      
+
       trainer.toggleAutoPlay(false);
       expect(trainer.stateManager.settings.autoPlay).toBe(false);
     });
@@ -661,11 +661,11 @@ describe('MorseTrainer - Core Functionality', () => {
 
     it('should generate offline broadcast with unlocked characters', async () => {
       trainer.generateAIBroadcast();
-      
+
       expect(trainer.dom.displays.feedback.textContent).toContain('Intercepting signal');
-      
+
       vi.advanceTimersByTime(900);
-      
+
       expect(trainer.currentChallenge).toBeTruthy();
     });
 
@@ -673,15 +673,15 @@ describe('MorseTrainer - Core Functionality', () => {
       // Set up weak characters
       trainer.stateManager.stats.accuracy = {
         'T': { correct: 2, total: 10 },
-        'E': { correct: 1, total: 10 },
+        'E': { correct: 1, total: 10 }
       };
-      
+
       trainer.generateAICoach();
-      
+
       expect(trainer.dom.displays.feedback.textContent).toContain('Consulting Coach');
-      
+
       vi.advanceTimersByTime(900);
-      
+
       expect(trainer.currentChallenge).toBeTruthy();
       expect(trainer.dom.displays.aiTipContainer.classList.contains('hidden')).toBe(false);
     });
@@ -708,11 +708,11 @@ describe('MorseTrainer - Core Functionality', () => {
   describe('Level Progress Tracker', () => {
     it('should render progress tracker with initial state', () => {
       trainer.renderLevelProgress();
-      
+
       const progressLevel = container.querySelector('#progress-level');
       const progressAccuracy = container.querySelector('#progress-accuracy');
       const progressMessage = container.querySelector('#progress-message');
-      
+
       expect(progressLevel).toBeTruthy();
       expect(progressAccuracy).toBeTruthy();
       expect(progressMessage).toBeTruthy();
@@ -721,10 +721,10 @@ describe('MorseTrainer - Core Functionality', () => {
     it('should show "need more challenges" when history is insufficient', () => {
       trainer.stateManager.stats.history = [];
       trainer.renderLevelProgress();
-      
+
       const progressAccuracy = container.querySelector('#progress-accuracy');
       const progressMessage = container.querySelector('#progress-message');
-      
+
       expect(progressAccuracy.textContent).toBe('--');
       expect(progressMessage.textContent).toContain('15 more');
       expect(progressMessage.textContent).toContain('unlock progress tracking');
@@ -742,9 +742,9 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now() - i * 1000
         });
       }
-      
+
       trainer.renderLevelProgress();
-      
+
       const progressAccuracy = container.querySelector('#progress-accuracy');
       expect(progressAccuracy.textContent).toContain('%');
       const accuracy = parseFloat(progressAccuracy.textContent);
@@ -762,12 +762,12 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now()
         });
       }
-      
+
       trainer.renderLevelProgress();
-      
+
       const progressBarFill = container.querySelector('#progress-bar-fill');
       const progressMessage = container.querySelector('#progress-message');
-      
+
       expect(progressBarFill.style.width).toBe('100%');
       // Hex color format
       const bgColor = progressBarFill.style.backgroundColor;
@@ -786,9 +786,9 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now()
         });
       }
-      
+
       trainer.renderLevelProgress();
-      
+
       const progressMessage = container.querySelector('#progress-message');
       expect(progressMessage.textContent).toContain('Almost there');
       expect(progressMessage.textContent).toContain('more correct answer');
@@ -806,9 +806,9 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now()
         });
       }
-      
+
       trainer.renderLevelProgress();
-      
+
       const progressBarFill = container.querySelector('#progress-bar-fill');
       const bgColor = progressBarFill.style.backgroundColor;
       expect(bgColor.includes('eab308') || bgColor.includes('234, 179, 8')).toBe(true);
@@ -825,9 +825,9 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now()
         });
       }
-      
+
       trainer.renderLevelProgress();
-      
+
       const progressBarFill = container.querySelector('#progress-bar-fill');
       const bgColor = progressBarFill.style.backgroundColor;
       expect(bgColor.includes('ef4444') || bgColor.includes('239, 68, 68')).toBe(true);
@@ -842,14 +842,14 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now()
         });
       }
-      
+
       trainer.currentChallenge = 'KM';
       trainer.hasPlayedCurrent = true;
       const userInput = container.querySelector('#user-input');
       userInput.value = 'KM';
-      
+
       trainer.checkAnswer();
-      
+
       const progressAccuracy = container.querySelector('#progress-accuracy');
       expect(progressAccuracy.textContent).not.toBe('--');
     });
@@ -865,9 +865,9 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now()
         });
       }
-      
+
       trainer.renderLevelProgress();
-      
+
       const progressMessage = container.querySelector('#progress-message');
       expect(progressMessage.textContent).toContain('Auto-level is disabled');
       expect(progressMessage.textContent).toContain('manual override');
@@ -884,9 +884,9 @@ describe('MorseTrainer - Core Functionality', () => {
           timestamp: Date.now()
         });
       }
-      
+
       trainer.renderLevelProgress();
-      
+
       const progressMessage = container.querySelector('#progress-message');
       expect(progressMessage.textContent).toContain('Maximum level reached');
       expect(progressMessage.textContent).toContain('mastered all characters');
@@ -909,7 +909,7 @@ describe('MorseTrainer - Core Functionality', () => {
           'T': { correct: 40, total: 100 },
           'A': { correct: 90, total: 100 }
         };
-        
+
         // Mock generateChallenge to return weak chars
         vi.spyOn(trainer.contentGenerator, 'generateChallenge').mockReturnValue({
           challenge: 'ETE',
@@ -967,7 +967,7 @@ describe('MorseTrainer - Core Functionality', () => {
           'T': { correct: 40, total: 100 }
         };
 
-        const today = new Date().toISOString().split('T')[0];
+        const _today = new Date().toISOString().split('T')[0];
         trainer.lastSessionDateIso = '2026-01-01'; // Different day
 
         trainer.dom.inputs.user.value = 'E';

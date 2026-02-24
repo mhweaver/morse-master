@@ -14,7 +14,7 @@ global.AudioContext = class AudioContext {
       frequency: { setValueAtTime: vi.fn() },
       connect: vi.fn(),
       start: vi.fn(),
-      stop: vi.fn(),
+      stop: vi.fn()
     };
   }
 
@@ -23,10 +23,10 @@ global.AudioContext = class AudioContext {
       gain: {
         setValueAtTime: vi.fn(),
         linearRampToValueAtTime: vi.fn(),
-        cancelScheduledValues: vi.fn(),
+        cancelScheduledValues: vi.fn()
       },
       connect: vi.fn(),
-      disconnect: vi.fn(),
+      disconnect: vi.fn()
     };
   }
 
@@ -44,9 +44,15 @@ const localStorageMock = (() => {
   let store = {};
   return {
     getItem: (key) => store[key] || null,
-    setItem: (key, value) => { store[key] = value.toString(); },
-    removeItem: (key) => { delete store[key]; },
-    clear: () => { store = {}; },
+    setItem: (key, value) => {
+      store[key] = value.toString();
+    },
+    removeItem: (key) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    }
   };
 })();
 

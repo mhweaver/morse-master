@@ -3,7 +3,7 @@
  * Analyzes challenge characteristics and performance to dynamically adjust difficulty
  */
 
-import { DIFFICULTY, DIFFICULTY_PRESETS, KOCH_SEQUENCE, MORSE_LIB } from './constants.js';
+import { DIFFICULTY, DIFFICULTY_PRESETS, MORSE_LIB } from './constants.js';
 
 /**
  * Calculates the difficulty of morse code challenges based on multiple factors:
@@ -11,9 +11,9 @@ import { DIFFICULTY, DIFFICULTY_PRESETS, KOCH_SEQUENCE, MORSE_LIB } from './cons
  * - Character weak/strong spots
  * - New characters (grace period)
  * - Real content vs synthetic
- * 
+ *
  * Provides adaptive generation tailored to performance level.
- * 
+ *
  * @example
  * const calc = new DifficultyCalculator(accuracyTracker);
  * const diff = calc.calculateChallengeDifficulty('HELLO WORLD');
@@ -54,7 +54,9 @@ export class DifficultyCalculator {
    * @public
    */
   calculateChallengeDifficulty(challenge, unlockedChars, lessonsSinceNewChar = 999) {
-    if (!challenge || !challenge.trim()) return DIFFICULTY.MODERATE;
+    if (!challenge || !challenge.trim()) {
+      return DIFFICULTY.MODERATE;
+    }
 
     let difficulty = DIFFICULTY.MODERATE; // Start at 5
 
@@ -104,7 +106,9 @@ export class DifficultyCalculator {
    */
   #calculateWeakCharFactor(challenge) {
     const weakChars = this.accuracyTracker.getWeakCharacters();
-    if (weakChars.length === 0) return 0;
+    if (weakChars.length === 0) {
+      return 0;
+    }
 
     const textChars = challenge.toUpperCase().split('').filter(c => c !== ' ');
     const hasWeak = textChars.some(c => weakChars.includes(c));
@@ -122,7 +126,9 @@ export class DifficultyCalculator {
    */
   #calculateMorseComplexity(challenge) {
     const textChars = challenge.toUpperCase().split('').filter(c => c !== ' ' && MORSE_LIB[c]);
-    if (textChars.length === 0) return 0;
+    if (textChars.length === 0) {
+      return 0;
+    }
 
     const avgComplexity = textChars.reduce((sum, char) => {
       const morse = MORSE_LIB[char] || '';
@@ -130,8 +136,12 @@ export class DifficultyCalculator {
     }, 0) / textChars.length;
 
     // Average morse is ~4, complex>5, simple<3
-    if (avgComplexity > 5) return 1;
-    if (avgComplexity < 3) return -1;
+    if (avgComplexity > 5) {
+      return 1;
+    }
+    if (avgComplexity < 3) {
+      return -1;
+    }
     return 0;
   }
 
@@ -188,7 +198,9 @@ export class DifficultyCalculator {
   isCharStrong(char) {
     const accuracy = this.accuracyTracker.getAccuracy(char);
     const data = this.accuracyTracker.data[char];
-    if (!data || data.total < 3) return false; // Need minimum attempts
+    if (!data || data.total < 3) {
+      return false;
+    } // Need minimum attempts
     return accuracy >= 80;
   }
 
@@ -206,9 +218,13 @@ export class DifficultyCalculator {
 
     characters.forEach(char => {
       const accuracy = this.accuracyTracker.getAccuracy(char);
-      if (accuracy < 60) weak.push(char);
-      else if (accuracy < 85) moderate.push(char);
-      else strong.push(char);
+      if (accuracy < 60) {
+        weak.push(char);
+      } else if (accuracy < 85) {
+        moderate.push(char);
+      } else {
+        strong.push(char);
+      }
     });
 
     return { weak, moderate, strong };
@@ -225,13 +241,13 @@ export class DifficultyCalculator {
    */
   scoreDifficultyMatch(challenge, estimatedDifficulty, userSuccess) {
     const successRate = this.accuracyTracker.getOverallAccuracy() / 100;
-    
+
     // Expected success rate varies with difficulty
     // At difficulty 5 (medium): expect 75% success
     // At difficulty 1 (easy): expect 95% success
     // At difficulty 10 (hard): expect 40% success
     const expectedSuccessRate = 0.95 - (estimatedDifficulty - 1) * 0.055;
-    
+
     // Check if performance matched difficulty
     const isAppropriate = Math.abs(successRate - expectedSuccessRate) < 0.2;
 

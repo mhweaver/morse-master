@@ -15,13 +15,11 @@ import {
   KOCH_LEVELS,
   UI_RENDERING,
   CONTENT_GENERATION,
-  MODAL_IDENTIFIERS,
   DEFAULT_SETTINGS,
   SETTINGS_RANGES,
   PLAYBACK_DELAYS,
   DEFAULT_STATS,
-  DIFFICULTY_PRESETS,
-  DIFFICULTY
+  DIFFICULTY_PRESETS
 } from './constants.js';
 import { COMMON_ABBR } from './content-generator.js';
 import {
@@ -38,120 +36,122 @@ import { DifficultyCalculator } from './difficulty-calculator.js';
 // --- Class ---
 /**
  * MorseTrainer - A comprehensive Morse code training application
- * 
+ *
  * Features:
  * - Adaptive difficulty using the Koch method
  * - Farnsworth timing for realistic practice
  * - Audio synthesis with customizable speed and tone
  * - Progress tracking with accuracy statistics
  * - AI-powered drill generation (with fallbacks)
- * 
+ *
  * @example
  * const container = document.getElementById('trainer');
  * const trainer = new MorseTrainer(container);
  */
 export class MorseTrainer {
-    /**
+  /**
      * Initialize MorseTrainer
      * @param {HTMLElement} containerElement - DOM element to mount the trainer
      * @throws {Error} If container element is not provided
      */
-    constructor(containerElement) {
-        if (!containerElement) throw new Error("MorseTrainer: Target element required");
-        this.container = containerElement;
-
-        // Initialize helper services
-        this.stateManager = new StateManager();
-        this.audioSynthesizer = new AudioSynthesizer(this.stateManager.settings);
-        // Wrap accuracy data in AccuracyTracker for self-documenting interface
-        this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
-        this.difficultyCalculator = new DifficultyCalculator(
-            this.accuracyTracker,
-            this.stateManager.settings.difficultyPreference
-        );
-        this.contentGenerator = new ContentGenerator(
-            this.accuracyTracker,
-            this.stateManager.settings.difficultyPreference,
-            this.stateManager.settings.userCallsign
-        );
-        this.aiOperations = new AIOperations(this.stateManager, this.contentGenerator);
-
-        // Initialize application state
-        this.currentChallenge = '';
-        this.currentMeaning = '';
-        this.lastChallengeDifficulty = 5; // Default middle difficulty
-        this.activeTab = 'train';
-        this.hasPlayedCurrent = false;
-        this.eventListeners = []; // Track listeners for cleanup
-        this.kochLongPressTimers = {}; // Track long-press timers for Koch buttons
-        
-        // Session tracking for warm-up/cool-down effects
-        this.sessionChallengesCount = 0;
-        this.lastSessionDateIso = this.stateManager.stats.sessionMetrics?.lastSessionDate;
-        
-        // Challenge queue for batch generation
-        this.challengeQueue = [];
-        this.isCurrentBatchFromNewLevel = false; // Track if batch was generated before level change
-
-        // Render Initial DOM Structure
-        this.renderStructure();
-
-        // Initialize DOM Cache for dynamic queries
-        this.domCache = new DOMCache(this.container);
-
-        // Cache DOM References
-        this.dom = {
-            views: {
-                train: this.container.querySelector('#view-train'),
-                stats: this.container.querySelector('#view-stats'),
-                guide: this.container.querySelector('#view-guide'),
-                settings: this.container.querySelector('#view-settings')
-            },
-            inputs: {
-                user: this.container.querySelector('#user-input'),
-                wpm: this.container.querySelector('#input-wpm'),
-                farnsworth: this.container.querySelector('#input-farnsworth'),
-                frequency: this.container.querySelector('#input-frequency'),
-                apiKey: this.container.querySelector('#input-api-key'),
-                difficulty: this.container.querySelector('#input-difficulty'),
-                userCallsign: this.container.querySelector('#input-user-callsign')
-            },
-            displays: {
-                feedback: this.container.querySelector('#feedback-msg'),
-                playBtn: this.container.querySelector('#play-btn'),
-                playStatus: this.container.querySelector('#play-status-text'),
-                levelBadge: this.container.querySelector('#level-badge'),
-                kochGrid: this.container.querySelector('#koch-grid'),
-                statsAcc: this.container.querySelector('#stat-accuracy'),
-                statsDrills: this.container.querySelector('#stat-drills'),
-                characterBreakdown: this.container.querySelector('#character-breakdown'),
-                historyList: this.container.querySelector('#history-list'),
-                abbrGrid: this.container.querySelector('#abbr-grid'),
-                roadmap: this.container.querySelector('#roadmap-list'),
-                aiTipContainer: this.container.querySelector('#ai-tip-container'),
-                aiTipText: this.container.querySelector('#ai-tip-text'),
-                submitBtn: this.container.querySelector('#submit-btn'),
-                weakCharFeedback: this.container.querySelector('#weak-char-feedback'),
-                weakCharList: this.container.querySelector('#weak-char-list')
-            },
-            modals: {
-                reset: this.container.querySelector('#modal-reset'),
-                characterDetail: this.container.querySelector('#modal-character-detail'),
-                aiHelp: this.container.querySelector('#modal-ai-help')
-            },
-            tabs: {
-                train: this.container.querySelector('#tab-btn-train'),
-                stats: this.container.querySelector('#tab-btn-stats'),
-                guide: this.container.querySelector('#tab-btn-guide'),
-                settings: this.container.querySelector('#tab-btn-settings')
-            }
-        };
-
-        this.init();
+  constructor(containerElement) {
+    if (!containerElement) {
+      throw new Error('MorseTrainer: Target element required');
     }
+    this.container = containerElement;
 
-    renderStructure() {
-        this.container.innerHTML = `
+    // Initialize helper services
+    this.stateManager = new StateManager();
+    this.audioSynthesizer = new AudioSynthesizer(this.stateManager.settings);
+    // Wrap accuracy data in AccuracyTracker for self-documenting interface
+    this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
+    this.difficultyCalculator = new DifficultyCalculator(
+      this.accuracyTracker,
+      this.stateManager.settings.difficultyPreference
+    );
+    this.contentGenerator = new ContentGenerator(
+      this.accuracyTracker,
+      this.stateManager.settings.difficultyPreference,
+      this.stateManager.settings.userCallsign
+    );
+    this.aiOperations = new AIOperations(this.stateManager, this.contentGenerator);
+
+    // Initialize application state
+    this.currentChallenge = '';
+    this.currentMeaning = '';
+    this.lastChallengeDifficulty = 5; // Default middle difficulty
+    this.activeTab = 'train';
+    this.hasPlayedCurrent = false;
+    this.eventListeners = []; // Track listeners for cleanup
+    this.kochLongPressTimers = {}; // Track long-press timers for Koch buttons
+
+    // Session tracking for warm-up/cool-down effects
+    this.sessionChallengesCount = 0;
+    this.lastSessionDateIso = this.stateManager.stats.sessionMetrics?.lastSessionDate;
+
+    // Challenge queue for batch generation
+    this.challengeQueue = [];
+    this.isCurrentBatchFromNewLevel = false; // Track if batch was generated before level change
+
+    // Render Initial DOM Structure
+    this.renderStructure();
+
+    // Initialize DOM Cache for dynamic queries
+    this.domCache = new DOMCache(this.container);
+
+    // Cache DOM References
+    this.dom = {
+      views: {
+        train: this.container.querySelector('#view-train'),
+        stats: this.container.querySelector('#view-stats'),
+        guide: this.container.querySelector('#view-guide'),
+        settings: this.container.querySelector('#view-settings')
+      },
+      inputs: {
+        user: this.container.querySelector('#user-input'),
+        wpm: this.container.querySelector('#input-wpm'),
+        farnsworth: this.container.querySelector('#input-farnsworth'),
+        frequency: this.container.querySelector('#input-frequency'),
+        apiKey: this.container.querySelector('#input-api-key'),
+        difficulty: this.container.querySelector('#input-difficulty'),
+        userCallsign: this.container.querySelector('#input-user-callsign')
+      },
+      displays: {
+        feedback: this.container.querySelector('#feedback-msg'),
+        playBtn: this.container.querySelector('#play-btn'),
+        playStatus: this.container.querySelector('#play-status-text'),
+        levelBadge: this.container.querySelector('#level-badge'),
+        kochGrid: this.container.querySelector('#koch-grid'),
+        statsAcc: this.container.querySelector('#stat-accuracy'),
+        statsDrills: this.container.querySelector('#stat-drills'),
+        characterBreakdown: this.container.querySelector('#character-breakdown'),
+        historyList: this.container.querySelector('#history-list'),
+        abbrGrid: this.container.querySelector('#abbr-grid'),
+        roadmap: this.container.querySelector('#roadmap-list'),
+        aiTipContainer: this.container.querySelector('#ai-tip-container'),
+        aiTipText: this.container.querySelector('#ai-tip-text'),
+        submitBtn: this.container.querySelector('#submit-btn'),
+        weakCharFeedback: this.container.querySelector('#weak-char-feedback'),
+        weakCharList: this.container.querySelector('#weak-char-list')
+      },
+      modals: {
+        reset: this.container.querySelector('#modal-reset'),
+        characterDetail: this.container.querySelector('#modal-character-detail'),
+        aiHelp: this.container.querySelector('#modal-ai-help')
+      },
+      tabs: {
+        train: this.container.querySelector('#tab-btn-train'),
+        stats: this.container.querySelector('#tab-btn-stats'),
+        guide: this.container.querySelector('#tab-btn-guide'),
+        settings: this.container.querySelector('#tab-btn-settings')
+      }
+    };
+
+    this.init();
+  }
+
+  renderStructure() {
+    this.container.innerHTML = `
             <div class="mt-wrapper">
                 <header class="mt-header">
                     <div class="mt-header-inner">
@@ -510,1249 +510,1374 @@ export class MorseTrainer {
                 </footer>
             </div>
         `;
+  }
+
+  async init() {
+    // Ensure manual chars array exists
+    if (!this.stateManager.settings.manualChars) {
+      this.stateManager.settings.manualChars = [];
+      this.stateManager.saveSettings();
     }
 
-    async init() {
-        // Ensure manual chars array exists
-        if (!this.stateManager.settings.manualChars) {
-            this.stateManager.settings.manualChars = [];
-            this.stateManager.saveSettings();
-        }
-
-        // Initialize autoplay toggle UI
-        const toggle = this.container.querySelector('#autoplay-toggle');
-        if (toggle) toggle.checked = this.stateManager.settings.autoPlay;
-
-        // Detect browser AI capabilities
-        await this.aiOperations.initializeAI();
-
-        // Set up event handlers and render UI
-        this.bindEvents();
-        this.renderSettings();
-        this.renderGuide();
-        this.switchTab('train');
+    // Initialize autoplay toggle UI
+    const toggle = this.container.querySelector('#autoplay-toggle');
+    if (toggle) {
+      toggle.checked = this.stateManager.settings.autoPlay;
     }
 
-    /**
+    // Detect browser AI capabilities
+    await this.aiOperations.initializeAI();
+
+    // Set up event handlers and render UI
+    this.bindEvents();
+    this.renderSettings();
+    this.renderGuide();
+    this.switchTab('train');
+  }
+
+  /**
      * Clean up resources and event listeners
      * @public
      */
-    destroy() {
-        // Stop any ongoing playback
-        this.audioSynthesizer.stop();
+  destroy() {
+    // Stop any ongoing playback
+    this.audioSynthesizer.stop();
 
-        // Remove all tracked event listeners
-        this.eventListeners.forEach(({ element, event, handler }) => {
-            element.removeEventListener(event, handler);
-        });
-        this.eventListeners = [];
+    // Remove all tracked event listeners
+    this.eventListeners.forEach(({ element, event, handler }) => {
+      element.removeEventListener(event, handler);
+    });
+    this.eventListeners = [];
 
-        // Clean up audio context
-        this.audioSynthesizer.destroy();
+    // Clean up audio context
+    this.audioSynthesizer.destroy();
 
-        // Clear DOM references
-        this.container.innerHTML = '';
+    // Clear DOM references
+    this.container.innerHTML = '';
+  }
+
+  // --- Core Logic ---
+  bindEvents() {
+    // Koch button handlers (mousedown/touchstart for long-press detection)
+    const kochMouseDownHandler = (e) => {
+      const kochBtn = e.target.closest('.mt-koch-btn');
+      if (!kochBtn || !kochBtn.dataset.char) {
+        return;
+      }
+
+      const char = kochBtn.dataset.char;
+      const longPressDelay = 500; // 500ms for long-press
+
+      // Clear any previous timer for this character
+      if (this.kochLongPressTimers[char]) {
+        clearTimeout(this.kochLongPressTimers[char].timer);
+      }
+
+      // Set timer for long-press
+      this.kochLongPressTimers[char] = {
+        timer: setTimeout(() => {
+          // Long-press: toggle character availability
+          this.toggleChar(char);
+          this.kochLongPressTimers[char] = null;
+        }, longPressDelay),
+        isLongPress: false
+      };
+    };
+
+    const kochMouseUpHandler = (e) => {
+      const kochBtn = e.target.closest('.mt-koch-btn');
+      if (!kochBtn || !kochBtn.dataset.char) {
+        return;
+      }
+
+      const char = kochBtn.dataset.char;
+      const longPressState = this.kochLongPressTimers[char];
+
+      if (longPressState && longPressState.timer) {
+        // Short tap: play the character sound
+        clearTimeout(longPressState.timer);
+        this.playKochCharacter(char);
+        this.kochLongPressTimers[char] = null;
+      }
+    };
+
+    const kochMouseLeaveHandler = (e) => {
+      const kochBtn = e.target.closest('.mt-koch-btn');
+      if (!kochBtn || !kochBtn.dataset.char) {
+        return;
+      }
+
+      const char = kochBtn.dataset.char;
+      if (this.kochLongPressTimers[char]) {
+        clearTimeout(this.kochLongPressTimers[char].timer);
+        this.kochLongPressTimers[char] = null;
+      }
+    };
+
+    this.container.addEventListener('mousedown', kochMouseDownHandler);
+    this.container.addEventListener('mouseup', kochMouseUpHandler);
+    this.container.addEventListener('mouseleave', kochMouseLeaveHandler);
+    this.container.addEventListener('touchstart', kochMouseDownHandler);
+    this.container.addEventListener('touchend', kochMouseUpHandler);
+    this.eventListeners.push({ element: this.container, event: 'mousedown', handler: kochMouseDownHandler });
+    this.eventListeners.push({ element: this.container, event: 'mouseup', handler: kochMouseUpHandler });
+    this.eventListeners.push({ element: this.container, event: 'mouseleave', handler: kochMouseLeaveHandler });
+    this.eventListeners.push({ element: this.container, event: 'touchstart', handler: kochMouseDownHandler });
+    this.eventListeners.push({ element: this.container, event: 'touchend', handler: kochMouseUpHandler });
+
+    // Single unified click handler with action routing (for non-Koch buttons)
+    const clickHandler = (e) => {
+      const trigger = e.target.closest('[data-action]');
+      if (!trigger) {
+        return;
+      }
+
+      const action = trigger.dataset.action;
+      this.handleAction(action, e);
+    };
+    this.container.addEventListener('click', clickHandler);
+    this.eventListeners.push({ element: this.container, event: 'click', handler: clickHandler });
+
+    // User input (Enter/Space handling)
+    if (this.dom.inputs.user) {
+      const userInputKeydownHandler = (e) => {
+        if (e.key === 'Enter') {
+          const isEmpty = !this.dom.inputs.user.value.trim();
+          if (isEmpty) {
+            this.togglePlay();
+          } else {
+            this.checkAnswer();
+          }
+        }
+        if (e.code === 'Space') {
+          const isEmpty = !this.dom.inputs.user.value.trim();
+          if (isEmpty) {
+            e.preventDefault();
+            this.togglePlay();
+          }
+        }
+      };
+      this.dom.inputs.user.addEventListener('keydown', userInputKeydownHandler);
+      this.eventListeners.push({ element: this.dom.inputs.user, event: 'keydown', handler: userInputKeydownHandler });
     }
 
-    // --- Core Logic ---
-    bindEvents() {
-        // Koch button handlers (mousedown/touchstart for long-press detection)
-        const kochMouseDownHandler = (e) => {
-            const kochBtn = e.target.closest('.mt-koch-btn');
-            if (!kochBtn || !kochBtn.dataset.char) return;
+    // Settings inputs
+    this.bindSettingInputs();
 
-            const char = kochBtn.dataset.char;
-            const longPressDelay = 500; // 500ms for long-press
-
-            // Clear any previous timer for this character
-            if (this.kochLongPressTimers[char]) {
-                clearTimeout(this.kochLongPressTimers[char].timer);
-            }
-
-            // Set timer for long-press
-            this.kochLongPressTimers[char] = {
-                timer: setTimeout(() => {
-                    // Long-press: toggle character availability
-                    this.toggleChar(char);
-                    this.kochLongPressTimers[char] = null;
-                }, longPressDelay),
-                isLongPress: false
-            };
-        };
-
-        const kochMouseUpHandler = (e) => {
-            const kochBtn = e.target.closest('.mt-koch-btn');
-            if (!kochBtn || !kochBtn.dataset.char) return;
-
-            const char = kochBtn.dataset.char;
-            const longPressState = this.kochLongPressTimers[char];
-
-            if (longPressState && longPressState.timer) {
-                // Short tap: play the character sound
-                clearTimeout(longPressState.timer);
-                this.playKochCharacter(char);
-                this.kochLongPressTimers[char] = null;
-            }
-        };
-
-        const kochMouseLeaveHandler = (e) => {
-            const kochBtn = e.target.closest('.mt-koch-btn');
-            if (!kochBtn || !kochBtn.dataset.char) return;
-
-            const char = kochBtn.dataset.char;
-            if (this.kochLongPressTimers[char]) {
-                clearTimeout(this.kochLongPressTimers[char].timer);
-                this.kochLongPressTimers[char] = null;
-            }
-        };
-
-        this.container.addEventListener('mousedown', kochMouseDownHandler);
-        this.container.addEventListener('mouseup', kochMouseUpHandler);
-        this.container.addEventListener('mouseleave', kochMouseLeaveHandler);
-        this.container.addEventListener('touchstart', kochMouseDownHandler);
-        this.container.addEventListener('touchend', kochMouseUpHandler);
-        this.eventListeners.push({ element: this.container, event: 'mousedown', handler: kochMouseDownHandler });
-        this.eventListeners.push({ element: this.container, event: 'mouseup', handler: kochMouseUpHandler });
-        this.eventListeners.push({ element: this.container, event: 'mouseleave', handler: kochMouseLeaveHandler });
-        this.eventListeners.push({ element: this.container, event: 'touchstart', handler: kochMouseDownHandler });
-        this.eventListeners.push({ element: this.container, event: 'touchend', handler: kochMouseUpHandler });
-
-        // Single unified click handler with action routing (for non-Koch buttons)
-        const clickHandler = (e) => {
-            const trigger = e.target.closest('[data-action]');
-            if (!trigger) return;
-
-            const action = trigger.dataset.action;
-            this.handleAction(action, e);
-        };
-        this.container.addEventListener('click', clickHandler);
-        this.eventListeners.push({ element: this.container, event: 'click', handler: clickHandler });
-
-        // User input (Enter/Space handling)
-        if (this.dom.inputs.user) {
-            const userInputKeydownHandler = (e) => {
-                if (e.key === 'Enter') {
-                    const isEmpty = !this.dom.inputs.user.value.trim();
-                    if (isEmpty) this.togglePlay();
-                    else this.checkAnswer();
-                }
-                if (e.code === 'Space') {
-                    const isEmpty = !this.dom.inputs.user.value.trim();
-                    if (isEmpty) {
-                        e.preventDefault();
-                        this.togglePlay();
-                    }
-                }
-            };
-            this.dom.inputs.user.addEventListener('keydown', userInputKeydownHandler);
-            this.eventListeners.push({ element: this.dom.inputs.user, event: 'keydown', handler: userInputKeydownHandler });
-        }
-
-        // Settings inputs
-        this.bindSettingInputs();
-
-        // Global keyboard shortcuts
-        const globalKeydownHandler = (e) => {
-            const isFocusedInApp = !document.activeElement ||
+    // Global keyboard shortcuts
+    const globalKeydownHandler = (e) => {
+      const isFocusedInApp = !document.activeElement ||
                 document.activeElement === document.body ||
                 this.container.contains(document.activeElement);
-            if (!isFocusedInApp) return;
+      if (!isFocusedInApp) {
+        return;
+      }
 
-            if (e.key === 'Escape' && this.audioSynthesizer.isPlaying) {
-                this.stopPlayback();
-            }
+      if (e.key === 'Escape' && this.audioSynthesizer.isPlaying) {
+        this.stopPlayback();
+      }
 
-            const isGlobalSpaceShortcut = (e.ctrlKey || e.metaKey) && e.code === 'Space';
-            const isContextSpaceShortcut = e.code === 'Space' && document.activeElement !== this.dom.inputs.user;
+      const isGlobalSpaceShortcut = (e.ctrlKey || e.metaKey) && e.code === 'Space';
+      const isContextSpaceShortcut = e.code === 'Space' && document.activeElement !== this.dom.inputs.user;
 
-            if (isGlobalSpaceShortcut || isContextSpaceShortcut) {
-                e.preventDefault();
-                this.togglePlay();
-            }
-        };
-        document.addEventListener('keydown', globalKeydownHandler);
-        this.eventListeners.push({ element: document, event: 'keydown', handler: globalKeydownHandler });
-    }
+      if (isGlobalSpaceShortcut || isContextSpaceShortcut) {
+        e.preventDefault();
+        this.togglePlay();
+      }
+    };
+    document.addEventListener('keydown', globalKeydownHandler);
+    this.eventListeners.push({ element: document, event: 'keydown', handler: globalKeydownHandler });
+  }
 
-    /**
+  /**
      * Route actions to appropriate handlers
      * @param {string} action - The action to handle
      * @private
      */
-    handleAction(action, event) {
-        // Playback
-        if (action === 'togglePlay') this.togglePlay();
-        if (action === 'checkAnswer') this.checkAnswer();
-        if (action === 'skipWord') this.generateNextChallenge();
-
-        // AI Operations
-        if (action === 'ai:broadcast') this.generateAIBroadcast();
-        if (action === 'ai:coach') this.generateAICoach();
-
-        // Tab navigation
-        if (action.startsWith('tab:')) this.switchTab(action.split(':')[1]);
-
-        // Modal operations
-        if (action.startsWith('modal:')) this.handleModalAction(action);
-
-        // Level changes
-        if (action === 'level:prev') this.changeLevel(-1);
-        if (action === 'level:next') this.changeLevel(1);
-
-        // Reset confirmation
-        if (action === 'confirmReset') this.confirmReset();
-
-        // Koch grid character toggle
-        if (action.startsWith('koch:')) {
-            const char = action.split(':')[1];
-            this.toggleChar(char);
-        }
-
-        // Character detail view
-        if (action.startsWith('char:')) {
-            const char = action.split(':')[1];
-            this.showCharacterDetail(char);
-        }
+  handleAction(action, _event) {
+    // Playback
+    if (action === 'togglePlay') {
+      this.togglePlay();
+    }
+    if (action === 'checkAnswer') {
+      this.checkAnswer();
+    }
+    if (action === 'skipWord') {
+      this.generateNextChallenge();
     }
 
-    /**
+    // AI Operations
+    if (action === 'ai:broadcast') {
+      this.generateAIBroadcast();
+    }
+    if (action === 'ai:coach') {
+      this.generateAICoach();
+    }
+
+    // Tab navigation
+    if (action.startsWith('tab:')) {
+      this.switchTab(action.split(':')[1]);
+    }
+
+    // Modal operations
+    if (action.startsWith('modal:')) {
+      this.handleModalAction(action);
+    }
+
+    // Level changes
+    if (action === 'level:prev') {
+      this.changeLevel(-1);
+    }
+    if (action === 'level:next') {
+      this.changeLevel(1);
+    }
+
+    // Reset confirmation
+    if (action === 'confirmReset') {
+      this.confirmReset();
+    }
+
+    // Koch grid character toggle
+    if (action.startsWith('koch:')) {
+      const char = action.split(':')[1];
+      this.toggleChar(char);
+    }
+
+    // Character detail view
+    if (action.startsWith('char:')) {
+      const char = action.split(':')[1];
+      this.showCharacterDetail(char);
+    }
+  }
+
+  /**
      * Handle modal open/close actions
      * @param {string} action - Modal action in format "modal:name:operation"
      * @private
      */
-    handleModalAction(action) {
-        const parts = action.split(':');
-        if (parts.length < 3) return;
-
-        const modalName = parts[1];
-        const operation = parts[2];
-
-        if (operation === 'open') {
-            this.toggleModal(modalName, true);
-        } else if (operation === 'close') {
-            this.toggleModal(modalName, false);
-        }
+  handleModalAction(action) {
+    const parts = action.split(':');
+    if (parts.length < 3) {
+      return;
     }
 
-    /**
+    const modalName = parts[1];
+    const operation = parts[2];
+
+    if (operation === 'open') {
+      this.toggleModal(modalName, true);
+    } else if (operation === 'close') {
+      this.toggleModal(modalName, false);
+    }
+  }
+
+  /**
      * Bind setting input handlers
      * @private
      */
-    bindSettingInputs() {
-        const bindSetting = (selector, key) => {
-            const element = typeof selector === 'string'
-                ? this.container.querySelector(selector)
-                : selector;
+  bindSettingInputs() {
+    const bindSetting = (selector, key) => {
+      const element = typeof selector === 'string'
+        ? this.container.querySelector(selector)
+        : selector;
 
-            if (!element) return;
+      if (!element) {
+        return;
+      }
 
-            const handler = (e) => {
-                const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-                // Special handling for autoPlay to call toggleAutoPlay
-                if (key === 'autoPlay') {
-                    this.toggleAutoPlay(value);
-                } else {
-                    this.updateSetting(key, value);
-                }
-            };
+      const handler = (e) => {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        // Special handling for autoPlay to call toggleAutoPlay
+        if (key === 'autoPlay') {
+          this.toggleAutoPlay(value);
+        } else {
+          this.updateSetting(key, value);
+        }
+      };
 
-            element.addEventListener('input', handler);
-            this.eventListeners.push({ element, event: 'input', handler });
-        };
+      element.addEventListener('input', handler);
+      this.eventListeners.push({ element, event: 'input', handler });
+    };
 
-        bindSetting(this.dom.inputs.difficulty, 'difficultyPreference');
-        bindSetting(this.dom.inputs.wpm, 'wpm');
-        bindSetting(this.dom.inputs.farnsworth, 'farnsworthWpm');
-        bindSetting(this.dom.inputs.frequency, 'frequency');
-        bindSetting(this.dom.inputs.apiKey, 'apiKey');
-        bindSetting(this.dom.inputs.userCallsign, 'userCallsign');
-        bindSetting('#autoplay-toggle', 'autoPlay');
-    }
+    bindSetting(this.dom.inputs.difficulty, 'difficultyPreference');
+    bindSetting(this.dom.inputs.wpm, 'wpm');
+    bindSetting(this.dom.inputs.farnsworth, 'farnsworthWpm');
+    bindSetting(this.dom.inputs.frequency, 'frequency');
+    bindSetting(this.dom.inputs.apiKey, 'apiKey');
+    bindSetting(this.dom.inputs.userCallsign, 'userCallsign');
+    bindSetting('#autoplay-toggle', 'autoPlay');
+  }
 
-    /**
+  /**
      * Stop current audio playback and update UI
      * @private
      */
-    stopPlayback() {
-        this.audioSynthesizer.stop();
-        this.renderPlayButton();
-        this.renderSubmitButton();
-    }
+  stopPlayback() {
+    this.audioSynthesizer.stop();
+    this.renderPlayButton();
+    this.renderSubmitButton();
+  }
 
-    /**
+  /**
      * Play Morse code audio for given text
      * @param {string} text - Text to convert to Morse code and play
      * @private
      */
-    async playMorse(text) {
-        if (this.audioSynthesizer.isPlaying) {
-            this.stopPlayback();
-            return;
-        }
-        if (!text) return;
-
-        this.hasPlayedCurrent = true;
-        this.dom.inputs.user.focus();
-
-        // Update audio settings from current state
-        this.audioSynthesizer.updateSettings({
-            wpm: this.stateManager.settings.wpm,
-            farnsworthWpm: this.stateManager.settings.farnsworthWpm,
-            frequency: this.stateManager.settings.frequency,
-            volume: this.stateManager.settings.volume
-        });
-
-        await this.audioSynthesizer.play(text, () => {
-            // Update UI when playback completes
-            this.renderPlayButton();
-        });
-
-        this.renderPlayButton();
-        this.renderSubmitButton();
-
-        // Auto-advance if enabled after playback
-        if (this.stateManager.settings.autoPlay) {
-            const originalIsPlaying = this.audioSynthesizer.isPlaying;
-            if (!originalIsPlaying && this.activeTab === 'train' && this.currentChallenge) {
-                // Note: playback end will be tracked by audioSynthesizer
-            }
-        }
+  async playMorse(text) {
+    if (this.audioSynthesizer.isPlaying) {
+      this.stopPlayback();
+      return;
+    }
+    if (!text) {
+      return;
     }
 
-    // --- Core Features ---
-    /**
+    this.hasPlayedCurrent = true;
+    this.dom.inputs.user.focus();
+
+    // Update audio settings from current state
+    this.audioSynthesizer.updateSettings({
+      wpm: this.stateManager.settings.wpm,
+      farnsworthWpm: this.stateManager.settings.farnsworthWpm,
+      frequency: this.stateManager.settings.frequency,
+      volume: this.stateManager.settings.volume
+    });
+
+    await this.audioSynthesizer.play(text, () => {
+      // Update UI when playback completes
+      this.renderPlayButton();
+    });
+
+    this.renderPlayButton();
+    this.renderSubmitButton();
+
+    // Auto-advance if enabled after playback
+    if (this.stateManager.settings.autoPlay) {
+      const originalIsPlaying = this.audioSynthesizer.isPlaying;
+      if (!originalIsPlaying && this.activeTab === 'train' && this.currentChallenge) {
+        // Note: playback end will be tracked by audioSynthesizer
+      }
+    }
+  }
+
+  // --- Core Features ---
+  /**
      * Toggle Morse code playback (play if stopped, stop if playing)
      * @public
      */
-    togglePlay() {
-        if (this.audioSynthesizer.isPlaying) {
-            this.stopPlayback();
-        } else {
-            this.playMorse(this.currentChallenge);
-        }
+  togglePlay() {
+    if (this.audioSynthesizer.isPlaying) {
+      this.stopPlayback();
+    } else {
+      this.playMorse(this.currentChallenge);
     }
+  }
 
-    /**
+  /**
      * Generate next training challenge (either real word or synthetic)
      * Clears input field and optionally plays the challenge
      * @param {boolean} playNow - Whether to automatically play the challenge (default: true)
      * @public
      */
-    generateNextChallenge(playNow = true) {
-        this.stopPlayback();
-        this.dom.displays.aiTipContainer.classList.add(CSS_CLASSES.HIDDEN);
+  generateNextChallenge(playNow = true) {
+    this.stopPlayback();
+    this.dom.displays.aiTipContainer.classList.add(CSS_CLASSES.HIDDEN);
 
-        const result = this.contentGenerator.generateChallenge(
-            this.stateManager.settings.lessonLevel,
-            this.stateManager.settings.manualChars
-        );
+    const result = this.contentGenerator.generateChallenge(
+      this.stateManager.settings.lessonLevel,
+      this.stateManager.settings.manualChars
+    );
 
-        this.currentChallenge = result.challenge;
-        this.currentMeaning = result.meaning;
-        this.hasPlayedCurrent = false;
-        this.dom.inputs.user.value = '';
-        this.dom.displays.feedback.classList.add('hidden');
-        
-        if (result.weakChars && result.weakChars.length > 0) {
-            // Ensure sessionMetrics exists
-            if (!this.stateManager.stats.sessionMetrics) {
-                this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
-            }
-            const weakCharSet = new Set(this.stateManager.stats.sessionMetrics.weakCharsFocused || []);
-            result.weakChars.forEach(char => weakCharSet.add(char));
-            this.stateManager.stats.sessionMetrics.weakCharsFocused = Array.from(weakCharSet);
-        }
-        
-        // Calculate and store challenge difficulty (1-10 scale)
-        const unlockedChars = new Set(KOCH_SEQUENCE.slice(0, this.stateManager.settings.lessonLevel));
-        this.lastChallengeDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
-            this.currentChallenge,
-            unlockedChars
-        );
-        
-        this.renderSubmitButton();
-        this.renderDifficultyDisplay();
-        this.updateWeakCharacterFeedback();
+    this.currentChallenge = result.challenge;
+    this.currentMeaning = result.meaning;
+    this.hasPlayedCurrent = false;
+    this.dom.inputs.user.value = '';
+    this.dom.displays.feedback.classList.add('hidden');
 
-        if (playNow) setTimeout(() => this.playMorse(this.currentChallenge), 100);
+    if (result.weakChars && result.weakChars.length > 0) {
+      // Ensure sessionMetrics exists
+      if (!this.stateManager.stats.sessionMetrics) {
+        this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+      }
+      const weakCharSet = new Set(this.stateManager.stats.sessionMetrics.weakCharsFocused || []);
+      result.weakChars.forEach(char => weakCharSet.add(char));
+      this.stateManager.stats.sessionMetrics.weakCharsFocused = Array.from(weakCharSet);
     }
 
-    /**
+    // Calculate and store challenge difficulty (1-10 scale)
+    const unlockedChars = new Set(KOCH_SEQUENCE.slice(0, this.stateManager.settings.lessonLevel));
+    this.lastChallengeDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
+      this.currentChallenge,
+      unlockedChars
+    );
+
+    this.renderSubmitButton();
+    this.renderDifficultyDisplay();
+    this.updateWeakCharacterFeedback();
+
+    if (playNow) {
+      setTimeout(() => this.playMorse(this.currentChallenge), 100);
+    }
+  }
+
+  /**
      * Check user's answer against current challenge
      * Updates stats and auto-advances level if enabled
      * @public
      */
-    checkAnswer() {
-        if (!this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent) return;
-
-        // Track session metrics
-        const today = new Date().toISOString().split('T')[0];
-        const wasNewDay = !this.lastSessionDateIso || this.lastSessionDateIso !== today;
-        if (wasNewDay) {
-            this.sessionChallengesCount = 0;
-            this.lastSessionDateIso = today;
-            
-            // Ensure sessionMetrics exists
-            if (!this.stateManager.stats.sessionMetrics) {
-                this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
-            }
-            
-            this.stateManager.stats.sessionMetrics.weakCharsFocused = [];
-            this.stateManager.stats.sessionMetrics.sessionStartAccuracy = {};
-            Object.keys(this.stateManager.stats.accuracy).forEach(char => {
-                const stats = this.stateManager.stats.accuracy[char];
-                const accuracy = stats.total > 0 ? (stats.correct / stats.total) : 0;
-                this.stateManager.stats.sessionMetrics.sessionStartAccuracy[char] = accuracy;
-            });
-        }
-        this.sessionChallengesCount++;
-        
-        // Ensure sessionMetrics exists
-        if (!this.stateManager.stats.sessionMetrics) {
-            this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
-        }
-        
-        // Persist session metrics
-        this.stateManager.stats.sessionMetrics.challengesInSession = this.sessionChallengesCount;
-        this.stateManager.stats.sessionMetrics.lastSessionDate = today;
-
-        const userAnswer = this.dom.inputs.user.value.toUpperCase().trim();
-        const correctAnswer = this.currentChallenge.toUpperCase();
-        const isCorrect = userAnswer === correctAnswer;
-
-        // Update accuracy statistics
-        correctAnswer.split('').forEach(character => {
-            if (!MORSE_LIB[character]) return;
-            if (!this.stateManager.stats.accuracy[character]) {
-                this.stateManager.stats.accuracy[character] = { correct: 0, total: 0 };
-            }
-            this.stateManager.stats.accuracy[character].total++;
-            if (isCorrect) {
-                this.stateManager.stats.accuracy[character].correct++;
-            }
-        });
-
-        // Update history
-        this.stateManager.stats.history.unshift({
-            challenge: correctAnswer,
-            input: userAnswer,
-            correct: isCorrect,
-            timestamp: Date.now()
-        });
-        this.stateManager.stats.history = this.stateManager.stats.history.slice(0, CONTENT_GENERATION.HISTORY_LIMIT);
-        
-        // Update content generator's accuracy data
-        // Recreate AccuracyTracker from updated plain object
-        this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
-        this.contentGenerator.updateAccuracyData(this.accuracyTracker);
-        this.stateManager.saveStats(); // Save stats immediately, not debounced
-
-        // Show feedback
-        const feedbackElement = this.dom.displays.feedback;
-        feedbackElement.classList.remove('hidden', CSS_CLASSES.SUCCESS, CSS_CLASSES.ERROR);
-        
-        if (isCorrect) {
-            feedbackElement.classList.add(CSS_CLASSES.SUCCESS);
-            const feedbackText = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}\n💡 Difficulty: ${Math.round(this.lastChallengeDifficulty || 5)}/10`;
-            feedbackElement.textContent = feedbackText;
-            if (this.activeTab === 'train') {
-                const delay = this.stateManager.settings.autoPlay ? PLAYBACK_DELAYS.AUTO_PLAY_NEXT : 0;
-                if (this.stateManager.settings.autoPlay) {
-                    setTimeout(() => this.generateNextChallenge(true), delay);
-                } else {
-                    this.generateNextChallenge(false); // Prep next but wait
-                }
-            }
-            this.checkAutoLevel();
-        } else {
-            feedbackElement.classList.add(CSS_CLASSES.ERROR);
-            const displayedUserAnswer = userAnswer || UI_FEEDBACK.EMPTY_INPUT;
-            const feedbackText = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}\n💡 Difficulty: ${Math.round(this.lastChallengeDifficulty || 5)}/10`;
-            feedbackElement.textContent = feedbackText;
-            this.checkAutoLevel();
-        }
-
-        this.renderLevelProgress();
+  checkAnswer() {
+    if (!this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent) {
+      return;
     }
 
-    /**
+    // Track session metrics
+    const today = new Date().toISOString().split('T')[0];
+    const wasNewDay = !this.lastSessionDateIso || this.lastSessionDateIso !== today;
+    if (wasNewDay) {
+      this.sessionChallengesCount = 0;
+      this.lastSessionDateIso = today;
+
+      // Ensure sessionMetrics exists
+      if (!this.stateManager.stats.sessionMetrics) {
+        this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+      }
+
+      this.stateManager.stats.sessionMetrics.weakCharsFocused = [];
+      this.stateManager.stats.sessionMetrics.sessionStartAccuracy = {};
+      Object.keys(this.stateManager.stats.accuracy).forEach(char => {
+        const stats = this.stateManager.stats.accuracy[char];
+        const accuracy = stats.total > 0 ? (stats.correct / stats.total) : 0;
+        this.stateManager.stats.sessionMetrics.sessionStartAccuracy[char] = accuracy;
+      });
+    }
+    this.sessionChallengesCount++;
+
+    // Ensure sessionMetrics exists
+    if (!this.stateManager.stats.sessionMetrics) {
+      this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+    }
+
+    // Persist session metrics
+    this.stateManager.stats.sessionMetrics.challengesInSession = this.sessionChallengesCount;
+    this.stateManager.stats.sessionMetrics.lastSessionDate = today;
+
+    const userAnswer = this.dom.inputs.user.value.toUpperCase().trim();
+    const correctAnswer = this.currentChallenge.toUpperCase();
+    const isCorrect = userAnswer === correctAnswer;
+
+    // Update accuracy statistics
+    correctAnswer.split('').forEach(character => {
+      if (!MORSE_LIB[character]) {
+        return;
+      }
+      if (!this.stateManager.stats.accuracy[character]) {
+        this.stateManager.stats.accuracy[character] = { correct: 0, total: 0 };
+      }
+      this.stateManager.stats.accuracy[character].total++;
+      if (isCorrect) {
+        this.stateManager.stats.accuracy[character].correct++;
+      }
+    });
+
+    // Update history
+    this.stateManager.stats.history.unshift({
+      challenge: correctAnswer,
+      input: userAnswer,
+      correct: isCorrect,
+      timestamp: Date.now()
+    });
+    this.stateManager.stats.history = this.stateManager.stats.history.slice(0, CONTENT_GENERATION.HISTORY_LIMIT);
+
+    // Update content generator's accuracy data
+    // Recreate AccuracyTracker from updated plain object
+    this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
+    this.contentGenerator.updateAccuracyData(this.accuracyTracker);
+    this.stateManager.saveStats(); // Save stats immediately, not debounced
+
+    // Show feedback
+    const feedbackElement = this.dom.displays.feedback;
+    feedbackElement.classList.remove('hidden', CSS_CLASSES.SUCCESS, CSS_CLASSES.ERROR);
+
+    if (isCorrect) {
+      feedbackElement.classList.add(CSS_CLASSES.SUCCESS);
+      const feedbackText = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}\n💡 Difficulty: ${Math.round(this.lastChallengeDifficulty || 5)}/10`;
+      feedbackElement.textContent = feedbackText;
+      if (this.activeTab === 'train') {
+        const delay = this.stateManager.settings.autoPlay ? PLAYBACK_DELAYS.AUTO_PLAY_NEXT : 0;
+        if (this.stateManager.settings.autoPlay) {
+          setTimeout(() => this.generateNextChallenge(true), delay);
+        } else {
+          this.generateNextChallenge(false); // Prep next but wait
+        }
+      }
+      this.checkAutoLevel();
+    } else {
+      feedbackElement.classList.add(CSS_CLASSES.ERROR);
+      const displayedUserAnswer = userAnswer || UI_FEEDBACK.EMPTY_INPUT;
+      const feedbackText = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}\n💡 Difficulty: ${Math.round(this.lastChallengeDifficulty || 5)}/10`;
+      feedbackElement.textContent = feedbackText;
+      this.checkAutoLevel();
+    }
+
+    this.renderLevelProgress();
+  }
+
+  /**
      * Check if accuracy threshold met and adjust lesson level
      * Discards any existing challenge batch if level changes
      * @private
      */
-    checkAutoLevel() {
-        if (!this.stateManager.settings.autoLevel) return;
-        
-        const recentHistory = this.stateManager.stats.history;
-        if (recentHistory.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) return;
-        
-        const recentDrills = recentHistory.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
-        const correctCount = recentDrills.filter(entry => entry.correct).length;
-        const accuracyPercentage = (correctCount / recentDrills.length) * 100;
-
-        if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY && 
-            this.stateManager.settings.lessonLevel < KOCH_SEQUENCE.length) {
-            // Discard current batch since level is changing
-            this.challengeQueue = [];
-            this.changeLevel(1, true); // isAutoAdvance = true to play jingle
-        } else if (accuracyPercentage < AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY && 
-                   this.stateManager.settings.lessonLevel > LEVEL_LIMITS.MIN) {
-            // Discard current batch since level is changing
-            this.challengeQueue = [];
-            this.changeLevel(-1);
-        }
+  checkAutoLevel() {
+    if (!this.stateManager.settings.autoLevel) {
+      return;
     }
 
-    /**
+    const recentHistory = this.stateManager.stats.history;
+    if (recentHistory.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) {
+      return;
+    }
+
+    const recentDrills = recentHistory.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
+    const correctCount = recentDrills.filter(entry => entry.correct).length;
+    const accuracyPercentage = (correctCount / recentDrills.length) * 100;
+
+    if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY &&
+            this.stateManager.settings.lessonLevel < KOCH_SEQUENCE.length) {
+      // Discard current batch since level is changing
+      this.challengeQueue = [];
+      this.changeLevel(1, true); // isAutoAdvance = true to play jingle
+    } else if (accuracyPercentage < AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY &&
+                   this.stateManager.settings.lessonLevel > LEVEL_LIMITS.MIN) {
+      // Discard current batch since level is changing
+      this.challengeQueue = [];
+      this.changeLevel(-1);
+    }
+  }
+
+  /**
      * Toggle manual character availability for current level
      * Characters below current level cannot be manually locked
      * @param {string} char - Character to toggle
      * @private
      */
-    toggleChar(char) {
-        const lvlIdx = this.stateManager.settings.lessonLevel;
-        const charIdx = KOCH_SEQUENCE.indexOf(char);
-        if (charIdx < lvlIdx) return; // Locked by level
+  toggleChar(char) {
+    const lvlIdx = this.stateManager.settings.lessonLevel;
+    const charIdx = KOCH_SEQUENCE.indexOf(char);
+    if (charIdx < lvlIdx) {
+      return;
+    } // Locked by level
 
-        const manual = this.stateManager.settings.manualChars;
-        if (manual.includes(char)) this.stateManager.settings.manualChars = manual.filter(c => c !== char);
-        else this.stateManager.settings.manualChars.push(char);
-        this.stateManager.saveSettings();
-        this.renderKochGrid();
+    const manual = this.stateManager.settings.manualChars;
+    if (manual.includes(char)) {
+      this.stateManager.settings.manualChars = manual.filter(c => c !== char);
+    } else {
+      this.stateManager.settings.manualChars.push(char);
     }
+    this.stateManager.saveSettings();
+    this.renderKochGrid();
+  }
 
-    /**
+  /**
      * Play the morse code for a single character
      * @param {string} char - Character to play
      * @private
      */
-    playKochCharacter(char) {
-        this.audioSynthesizer.updateSettings({
-            wpm: this.stateManager.settings.wpm,
-            farnsworthWpm: this.stateManager.settings.farnsworthWpm,
-            frequency: this.stateManager.settings.frequency,
-            volume: this.stateManager.settings.volume
-        });
-        this.playMorse(char);
-    }
+  playKochCharacter(char) {
+    this.audioSynthesizer.updateSettings({
+      wpm: this.stateManager.settings.wpm,
+      farnsworthWpm: this.stateManager.settings.farnsworthWpm,
+      frequency: this.stateManager.settings.frequency,
+      volume: this.stateManager.settings.volume
+    });
+    this.playMorse(char);
+  }
 
-    /**
+  /**
      * Change lesson level by delta, respecting bounds and manual overrides
      * @param {number} delta - Change amount (-1 to decrease, +1 to increase)
      * @param {boolean} isAutoAdvance - Whether this is from automatic level up (plays jingle)
      * @private
      */
-    changeLevel(delta, isAutoAdvance = false) {
-        let newLevel = this.stateManager.settings.lessonLevel + delta;
-        if (delta > 0) {
-            while (newLevel < KOCH_SEQUENCE.length) {
-                if (!this.stateManager.settings.manualChars.includes(KOCH_SEQUENCE[newLevel - 1])) break;
-                newLevel++;
-            }
+  changeLevel(delta, isAutoAdvance = false) {
+    let newLevel = this.stateManager.settings.lessonLevel + delta;
+    if (delta > 0) {
+      while (newLevel < KOCH_SEQUENCE.length) {
+        if (!this.stateManager.settings.manualChars.includes(KOCH_SEQUENCE[newLevel - 1])) {
+          break;
         }
-        newLevel = Math.max(LEVEL_LIMITS.MIN, Math.min(KOCH_SEQUENCE.length, newLevel));
-        if (newLevel !== this.stateManager.settings.lessonLevel) {
-            this.stateManager.settings.lessonLevel = newLevel;
-            this.stateManager.saveSettings();
-            this.renderKochGrid();
-            this.renderLevelProgress();
-            
-            // Play celebratory jingle on automatic level up
-            if (isAutoAdvance && delta > 0) {
-                this.audioSynthesizer.playJingle();
-            }
-        }
+        newLevel++;
+      }
     }
+    newLevel = Math.max(LEVEL_LIMITS.MIN, Math.min(KOCH_SEQUENCE.length, newLevel));
+    if (newLevel !== this.stateManager.settings.lessonLevel) {
+      this.stateManager.settings.lessonLevel = newLevel;
+      this.stateManager.saveSettings();
+      this.renderKochGrid();
+      this.renderLevelProgress();
 
-    // --- AI / Offline Simulation ---
-    /**
+      // Play celebratory jingle on automatic level up
+      if (isAutoAdvance && delta > 0) {
+        this.audioSynthesizer.playJingle();
+      }
+    }
+  }
+
+  // --- AI / Offline Simulation ---
+  /**
      * Generate AI-powered broadcast batch: Creates realistic sentences from unlocked characters
      * Falls back to offline simulation if AI unavailable
      * Generates multiple challenges at once to reduce API calls
      * @public
      */
-    async generateAIBroadcast() {
-        this.stopPlayback();
-        this.challengeQueue = []; // Clear old queue
-        this.isCurrentBatchFromNewLevel = false;
-        
-        const feedbackElement = this.dom.displays.feedback;
-        feedbackElement.classList.remove(CSS_CLASSES.HIDDEN, CSS_CLASSES.ERROR, CSS_CLASSES.SUCCESS);
-        feedbackElement.classList.add(CSS_CLASSES.INFO);
-        feedbackElement.textContent = UI_FEEDBACK.INTERCEPTING;
+  async generateAIBroadcast() {
+    this.stopPlayback();
+    this.challengeQueue = []; // Clear old queue
+    this.isCurrentBatchFromNewLevel = false;
 
-        this.aiOperations.generateBroadcastBatch(
-            CONTENT_GENERATION.BATCH_SIZE,
-            (result) => { // onSuccess
-                this.challengeQueue = result.batch;
-                this.loadNextQueuedChallenge(feedbackElement);
-            },
-            (result) => { // onFallback
-                this.challengeQueue = result.batch;
-                this.loadNextQueuedChallenge(feedbackElement);
-            },
-            (error) => { // onError
-                console.error('AI broadcast batch failed:', error);
-                feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
-            }
-        );
-    }
+    const feedbackElement = this.dom.displays.feedback;
+    feedbackElement.classList.remove(CSS_CLASSES.HIDDEN, CSS_CLASSES.ERROR, CSS_CLASSES.SUCCESS);
+    feedbackElement.classList.add(CSS_CLASSES.INFO);
+    feedbackElement.textContent = UI_FEEDBACK.INTERCEPTING;
 
-    /**
+    this.aiOperations.generateBroadcastBatch(
+      CONTENT_GENERATION.BATCH_SIZE,
+      (result) => { // onSuccess
+        this.challengeQueue = result.batch;
+        this.loadNextQueuedChallenge(feedbackElement);
+      },
+      (result) => { // onFallback
+        this.challengeQueue = result.batch;
+        this.loadNextQueuedChallenge(feedbackElement);
+      },
+      (error) => { // onError
+        console.error('AI broadcast batch failed:', error);
+        feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
+      }
+    );
+  }
+
+  /**
      * Generate AI-powered smart drill batch: Targets weak characters from accuracy history
      * Falls back to offline simulation if AI unavailable
      * Generates multiple coach challenges at once
      * @public
      */
-    async generateAICoach() {
-        this.stopPlayback();
-        this.challengeQueue = []; // Clear old queue
-        this.isCurrentBatchFromNewLevel = false;
-        
-        const feedbackElement = this.dom.displays.feedback;
-        feedbackElement.classList.remove(CSS_CLASSES.HIDDEN);
-        feedbackElement.textContent = UI_FEEDBACK.CONSULTING;
+  async generateAICoach() {
+    this.stopPlayback();
+    this.challengeQueue = []; // Clear old queue
+    this.isCurrentBatchFromNewLevel = false;
 
-        this.aiOperations.generateCoachBatch(
-            CONTENT_GENERATION.BATCH_SMART_COACH_SIZE,
-            (result) => { // onSuccess
-                this.challengeQueue = result.batch;
-                this.isCoachBatchHasWeakChars = result.hasWeakChars;
-                this.loadNextQueuedChallenge(feedbackElement, result.hasWeakChars);
-            },
-            (result) => { // onFallback
-                this.challengeQueue = result.batch;
-                this.isCoachBatchHasWeakChars = result.hasWeakChars;
-                this.loadNextQueuedChallenge(feedbackElement, result.hasWeakChars);
-            },
-            (error) => { // onError
-                console.error('AI coach batch failed:', error);
-                feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
-            }
-        );
-    }
+    const feedbackElement = this.dom.displays.feedback;
+    feedbackElement.classList.remove(CSS_CLASSES.HIDDEN);
+    feedbackElement.textContent = UI_FEEDBACK.CONSULTING;
 
-    /**
+    this.aiOperations.generateCoachBatch(
+      CONTENT_GENERATION.BATCH_SMART_COACH_SIZE,
+      (result) => { // onSuccess
+        this.challengeQueue = result.batch;
+        this.isCoachBatchHasWeakChars = result.hasWeakChars;
+        this.loadNextQueuedChallenge(feedbackElement, result.hasWeakChars);
+      },
+      (result) => { // onFallback
+        this.challengeQueue = result.batch;
+        this.isCoachBatchHasWeakChars = result.hasWeakChars;
+        this.loadNextQueuedChallenge(feedbackElement, result.hasWeakChars);
+      },
+      (error) => { // onError
+        console.error('AI coach batch failed:', error);
+        feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
+      }
+    );
+  }
+
+  /**
      * Load next challenge from queue and play it
      * @param {HTMLElement} feedbackElement - Element to hide
      * @param {boolean} hasWeakChars - Whether coach batch has weak chars (optional)
      * @private
      */
-    loadNextQueuedChallenge(feedbackElement, hasWeakChars = null) {
-        if (this.challengeQueue.length === 0) {
-            feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
-            return;
-        }
-
-        const challenge = this.challengeQueue.shift();
-        this.currentChallenge = challenge.challenge;
-        this.currentMeaning = challenge.meaning;
-        this.dom.inputs.user.value = '';
-
-        // Calculate difficulty for queued challenges too
-        const unlockedChars = new Set(KOCH_SEQUENCE.slice(0, this.stateManager.settings.lessonLevel));
-        this.lastChallengeDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
-            this.currentChallenge,
-            unlockedChars
-        );
-
-        // Show coach tip if applicable
-        if (hasWeakChars !== null) {
-            this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
-            const tipMessage = hasWeakChars
-                ? UI_FEEDBACK.WEAK_CHARS_MESSAGE
-                : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
-            this.dom.displays.aiTipText.textContent = tipMessage;
-        }
-
-        feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
-        this.playMorse(this.currentChallenge);
+  loadNextQueuedChallenge(feedbackElement, hasWeakChars = null) {
+    if (this.challengeQueue.length === 0) {
+      feedbackElement.textContent = UI_FEEDBACK.AI_FAILED;
+      return;
     }
 
-    // --- Render Helpers ---
-    /**
+    const challenge = this.challengeQueue.shift();
+    this.currentChallenge = challenge.challenge;
+    this.currentMeaning = challenge.meaning;
+    this.dom.inputs.user.value = '';
+
+    // Calculate difficulty for queued challenges too
+    const unlockedChars = new Set(KOCH_SEQUENCE.slice(0, this.stateManager.settings.lessonLevel));
+    this.lastChallengeDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
+      this.currentChallenge,
+      unlockedChars
+    );
+
+    // Show coach tip if applicable
+    if (hasWeakChars !== null) {
+      this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
+      const tipMessage = hasWeakChars
+        ? UI_FEEDBACK.WEAK_CHARS_MESSAGE
+        : UI_FEEDBACK.GOOD_ACCURACY_MESSAGE;
+      this.dom.displays.aiTipText.textContent = tipMessage;
+    }
+
+    feedbackElement.classList.add(CSS_CLASSES.HIDDEN);
+    this.playMorse(this.currentChallenge);
+  }
+
+  // --- Render Helpers ---
+  /**
      * Toggle modal visibility
      * @param {string} name - Modal identifier (settings, reset, aiHelp)
      * @param {boolean} show - Whether to show or hide the modal
      * @private
      */
-    toggleModal(name, show) {
-        const modal = this.dom.modals[name];
-        if (modal) modal.classList.toggle(CSS_CLASSES.HIDDEN, !show);
+  toggleModal(name, show) {
+    const modal = this.dom.modals[name];
+    if (modal) {
+      modal.classList.toggle(CSS_CLASSES.HIDDEN, !show);
     }
+  }
 
-    /**
+  /**
      * Switch active tab and update view
      * @param {string} id - Tab identifier (train, stats, guide)
      * @private
      */
-    switchTab(id) {
-        this.activeTab = id;
-        Object.values(this.dom.tabs).forEach(b => b.classList.remove(CSS_CLASSES.ACTIVE));
-        if (this.dom.tabs[id]) this.dom.tabs[id].classList.add(CSS_CLASSES.ACTIVE);
-        
-        Object.values(this.dom.views).forEach(v => v.classList.add(CSS_CLASSES.HIDDEN));
-        if (id === 'train') {
-            this.dom.views.train.classList.remove(CSS_CLASSES.HIDDEN);
-            this.renderLevelProgress();
-        }
-        if (id === 'stats') { this.dom.views.stats.classList.remove(CSS_CLASSES.HIDDEN); this.renderStats(); }
-        if (id === 'guide') this.dom.views.guide.classList.remove(CSS_CLASSES.HIDDEN);
-        if (id === 'settings') this.dom.views.settings.classList.remove(CSS_CLASSES.HIDDEN);
-        
-        if (id === 'train' && !this.currentChallenge) this.generateNextChallenge(false);
+  switchTab(id) {
+    this.activeTab = id;
+    Object.values(this.dom.tabs).forEach(b => b.classList.remove(CSS_CLASSES.ACTIVE));
+    if (this.dom.tabs[id]) {
+      this.dom.tabs[id].classList.add(CSS_CLASSES.ACTIVE);
     }
 
-    /**
+    Object.values(this.dom.views).forEach(v => v.classList.add(CSS_CLASSES.HIDDEN));
+    if (id === 'train') {
+      this.dom.views.train.classList.remove(CSS_CLASSES.HIDDEN);
+      this.renderLevelProgress();
+    }
+    if (id === 'stats') {
+      this.dom.views.stats.classList.remove(CSS_CLASSES.HIDDEN); this.renderStats();
+    }
+    if (id === 'guide') {
+      this.dom.views.guide.classList.remove(CSS_CLASSES.HIDDEN);
+    }
+    if (id === 'settings') {
+      this.dom.views.settings.classList.remove(CSS_CLASSES.HIDDEN);
+    }
+
+    if (id === 'train' && !this.currentChallenge) {
+      this.generateNextChallenge(false);
+    }
+  }
+
+  /**
      * Update individual setting value and trigger immediate UI update
      * @param {string} key - Setting key
      * @param {any} newValue - New value
      * @private
      */
-    updateSetting(key, newValue) {
-        if (key === 'apiKey') {
-            this.stateManager.settings.apiKey = newValue.trim();
-        } else if (key === 'userCallsign') {
-            this.stateManager.settings.userCallsign = newValue.toUpperCase().trim();
-            this.contentGenerator.updateUserCallsign(newValue);
-        } else {
-            this.stateManager.settings[key] = key === 'autoPlay' ? newValue : parseInt(newValue);
-        }
-        
-        // Apply difficulty preference to content generator and difficulty calculator
-        if (key === 'difficultyPreference') {
-            this.contentGenerator.updateDifficultyPreference(parseInt(newValue));
-            this.difficultyCalculator.applyDifficultyPreset(parseInt(newValue));
-        }
-        
-        this.renderSettings();
-        this.stateManager.saveSettings();
+  updateSetting(key, newValue) {
+    if (key === 'apiKey') {
+      this.stateManager.settings.apiKey = newValue.trim();
+    } else if (key === 'userCallsign') {
+      this.stateManager.settings.userCallsign = newValue.toUpperCase().trim();
+      this.contentGenerator.updateUserCallsign(newValue);
+    } else {
+      this.stateManager.settings[key] = key === 'autoPlay' ? newValue : parseInt(newValue);
     }
 
-    /**
+    // Apply difficulty preference to content generator and difficulty calculator
+    if (key === 'difficultyPreference') {
+      this.contentGenerator.updateDifficultyPreference(parseInt(newValue));
+      this.difficultyCalculator.applyDifficultyPreset(parseInt(newValue));
+    }
+
+    this.renderSettings();
+    this.stateManager.saveSettings();
+  }
+
+  /**
      * Toggle auto-play setting on/off
      * @param {boolean} newValue - New auto-play state
      * @private
      */
-    toggleAutoPlay(newValue) {
-        this.stateManager.settings.autoPlay = newValue;
-        this.stateManager.saveSettings();
-    }
+  toggleAutoPlay(newValue) {
+    this.stateManager.settings.autoPlay = newValue;
+    this.stateManager.saveSettings();
+  }
 
-    /**
+  /**
      * Reset all progress and return to initial state
      * @public
      */
-    confirmReset() {
-        // Create fresh copies to avoid shared reference issues
-        this.stateManager.stats = deepClone(DEFAULT_STATS);
-        this.stateManager.settings.lessonLevel = LEVEL_LIMITS.MIN;
-        this.stateManager.settings.manualChars = [];
-        this.stateManager.saveStats();
-        this.stateManager.saveSettings();
-        
-        // Reset session tracking
-        this.sessionChallengesCount = 0;
-        this.lastSessionDateIso = null;
-        
-        // Recreate AccuracyTracker with fresh stats
-        this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
-        this.contentGenerator.updateAccuracyData(this.accuracyTracker);
-        
-        this.toggleModal('reset', false);
-        this.renderStats();
-        this.renderKochGrid();
-        this.renderCharacterBreakdown();
-    }
+  confirmReset() {
+    // Create fresh copies to avoid shared reference issues
+    this.stateManager.stats = deepClone(DEFAULT_STATS);
+    this.stateManager.settings.lessonLevel = LEVEL_LIMITS.MIN;
+    this.stateManager.settings.manualChars = [];
+    this.stateManager.saveStats();
+    this.stateManager.saveSettings();
+
+    // Reset session tracking
+    this.sessionChallengesCount = 0;
+    this.lastSessionDateIso = null;
+
+    // Recreate AccuracyTracker with fresh stats
+    this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
+    this.contentGenerator.updateAccuracyData(this.accuracyTracker);
+
+    this.toggleModal('reset', false);
+    this.renderStats();
+    this.renderKochGrid();
+    this.renderCharacterBreakdown();
+  }
 
 
-    /**
+  /**
      * Update and render all settings displays
      * @private
      */
-    renderSettings() {
-        const s = this.stateManager.settings;
-        this.container.querySelector('#display-difficulty').textContent = this._getDifficultyLabel(s.difficultyPreference);
-        this.container.querySelector('#difficulty-description').textContent = this._getDifficultyDescription(s.difficultyPreference);
-        this.container.querySelector('#display-wpm').textContent = s.wpm + " WPM";
-        this.container.querySelector('#display-farnsworth').textContent = s.farnsworthWpm + " WPM";
-        this.container.querySelector('#display-frequency').textContent = s.frequency + " Hz";
-        this.dom.inputs.difficulty.value = s.difficultyPreference;
-        this.dom.inputs.wpm.value = s.wpm;
-        this.dom.inputs.farnsworth.value = s.farnsworthWpm;
-        this.dom.inputs.frequency.value = s.frequency;
-        this.dom.inputs.apiKey.value = s.apiKey || '';
-        this.dom.inputs.userCallsign.value = s.userCallsign || '';
+  renderSettings() {
+    const s = this.stateManager.settings;
+    this.container.querySelector('#display-difficulty').textContent = this._getDifficultyLabel(s.difficultyPreference);
+    this.container.querySelector('#difficulty-description').textContent = this._getDifficultyDescription(s.difficultyPreference);
+    this.container.querySelector('#display-wpm').textContent = s.wpm + ' WPM';
+    this.container.querySelector('#display-farnsworth').textContent = s.farnsworthWpm + ' WPM';
+    this.container.querySelector('#display-frequency').textContent = s.frequency + ' Hz';
+    this.dom.inputs.difficulty.value = s.difficultyPreference;
+    this.dom.inputs.wpm.value = s.wpm;
+    this.dom.inputs.farnsworth.value = s.farnsworthWpm;
+    this.dom.inputs.frequency.value = s.frequency;
+    this.dom.inputs.apiKey.value = s.apiKey || '';
+    this.dom.inputs.userCallsign.value = s.userCallsign || '';
 
-        const badge = this.container.querySelector('#ai-status-badge');
-        if (s.apiKey) { badge.className = 'mt-badge-large active-cloud'; badge.textContent = "Active: Gemini Cloud"; }
-        else if (this.aiOperations.hasBrowserAI) { badge.className = 'mt-badge-large active-local'; badge.textContent = "Active: Chrome AI"; }
-        else { badge.className = 'mt-badge-large inactive'; badge.textContent = "Active: Offline Template"; }
-
-        this.renderKochGrid();
+    const badge = this.container.querySelector('#ai-status-badge');
+    if (s.apiKey) {
+      badge.className = 'mt-badge-large active-cloud'; badge.textContent = 'Active: Gemini Cloud';
+    } else if (this.aiOperations.hasBrowserAI) {
+      badge.className = 'mt-badge-large active-local'; badge.textContent = 'Active: Chrome AI';
+    } else {
+      badge.className = 'mt-badge-large inactive'; badge.textContent = 'Active: Offline Template';
     }
 
-    /**
+    this.renderKochGrid();
+  }
+
+  /**
      * Update play button state (play/stop) and status text
      * @private
      */
-    renderPlayButton() {
-        const btn = this.dom.displays.playBtn;
-        const txt = this.dom.displays.playStatus;
-        if (this.audioSynthesizer.isPlaying) {
-            btn.className = `mt-play-btn ${CSS_CLASSES.STOP}`;
-            btn.innerHTML = ICONS.stop;
-            txt.textContent = "Click to Stop";
-        } else {
-            btn.className = `mt-play-btn ${CSS_CLASSES.PLAY}`;
-            btn.innerHTML = ICONS.play;
-            txt.textContent = "Click to Play";
-        }
+  renderPlayButton() {
+    const btn = this.dom.displays.playBtn;
+    const txt = this.dom.displays.playStatus;
+    if (this.audioSynthesizer.isPlaying) {
+      btn.className = `mt-play-btn ${CSS_CLASSES.STOP}`;
+      btn.innerHTML = ICONS.stop;
+      txt.textContent = 'Click to Stop';
+    } else {
+      btn.className = `mt-play-btn ${CSS_CLASSES.PLAY}`;
+      btn.innerHTML = ICONS.play;
+      txt.textContent = 'Click to Play';
     }
+  }
 
-    /**
+  /**
      * Update submit button disabled state based on current challenge state
      * @private
      */
-    renderSubmitButton() {
-        const btn = this.dom.displays.submitBtn;
-        const disabled = !this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent;
-        btn.disabled = disabled;
-    }
+  renderSubmitButton() {
+    const btn = this.dom.displays.submitBtn;
+    const disabled = !this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent;
+    btn.disabled = disabled;
+  }
 
-    /**
+  /**
      * Convert difficulty number (1-10) to a label string
      * @param {number} difficulty - Difficulty value 1-10
      * @returns {string} Label like "Very Easy", "Medium", "Hard"
      * @private
      */
-    _getDifficultyLabelForChallenge(difficulty) {
-        if (difficulty <= 2) return 'Very Easy';
-        if (difficulty <= 4) return 'Easy';
-        if (difficulty <= 6) return 'Medium';
-        if (difficulty <= 8) return 'Hard';
-        return 'Very Hard';
+  _getDifficultyLabelForChallenge(difficulty) {
+    if (difficulty <= 2) {
+      return 'Very Easy';
     }
+    if (difficulty <= 4) {
+      return 'Easy';
+    }
+    if (difficulty <= 6) {
+      return 'Medium';
+    }
+    if (difficulty <= 8) {
+      return 'Hard';
+    }
+    return 'Very Hard';
+  }
 
-    /**
+  /**
      * Convert difficulty number (1-10) to a color for visual display
      * @param {number} difficulty - Difficulty value 1-10
      * @returns {string} CSS color value
      * @private
      */
-    _getDifficultyColor(difficulty) {
-        if (difficulty <= 2) return '#10b981'; // Green
-        if (difficulty <= 4) return '#84cc16'; // Light green/lime
-        if (difficulty <= 6) return '#eab308'; // Yellow
-        if (difficulty <= 8) return '#f97316'; // Orange
-        return '#ef4444'; // Red
-    }
+  _getDifficultyColor(difficulty) {
+    if (difficulty <= 2) {
+      return '#10b981';
+    } // Green
+    if (difficulty <= 4) {
+      return '#84cc16';
+    } // Light green/lime
+    if (difficulty <= 6) {
+      return '#eab308';
+    } // Yellow
+    if (difficulty <= 8) {
+      return '#f97316';
+    } // Orange
+    return '#ef4444'; // Red
+  }
 
-    /**
+  /**
      * Render level progress tracker showing recent accuracy and progress to next level
      * @private
      */
-    renderLevelProgress() {
-        const progressLevel = this.domCache.query('#progress-level');
-        const progressAccuracy = this.domCache.query('#progress-accuracy');
-        const progressBarFill = this.domCache.query('#progress-bar-fill');
-        const progressMessage = this.domCache.query('#progress-message');
-        
-        if (!progressLevel || !progressAccuracy || !progressBarFill || !progressMessage) return;
-        
-        const currentLevel = this.stateManager.settings.lessonLevel;
-        const recentHistory = this.stateManager.stats.history;
-        const autoLevelEnabled = this.stateManager.settings.autoLevel;
-        
-        // Update current level
-        progressLevel.textContent = currentLevel;
-        
-        // Check if we have enough history
-        if (recentHistory.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) {
-            const needed = AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD - recentHistory.length;
-            progressAccuracy.textContent = '--';
-            progressBarFill.style.width = '0%';
-            progressBarFill.style.backgroundColor = '#6b7280'; // Gray
-            progressMessage.textContent = `Complete ${needed} more challenge${needed > 1 ? 's' : ''} to unlock progress tracking`;
-            progressMessage.className = 'mt-progress-message';
-            return;
-        }
-        
-        // Calculate recent accuracy
-        const recentDrills = recentHistory.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
-        const correctCount = recentDrills.filter(entry => entry.correct).length;
-        const accuracyPercentage = (correctCount / recentDrills.length) * 100;
-        
-        progressAccuracy.textContent = `${accuracyPercentage.toFixed(1)}%`;
-        
-        // Update progress bar (0-100% mapped to accuracy 60-90%)
-        let barPercentage = 0;
-        let barColor = '#ef4444'; // Red (struggling)
-        let message = '';
-        
-        if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY) {
-            // Ready to level up (or would level up if auto-level enabled)
-            barPercentage = 100;
-            barColor = '#10b981'; // Green
-            if (autoLevelEnabled) {
-                if (currentLevel >= KOCH_SEQUENCE.length) {
-                    message = '🎉 Maximum level reached! You\'ve mastered all characters!';
-                } else {
-                    message = `🎯 Excellent! Maintaining ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}%+ accuracy — you\'ll advance to Level ${currentLevel + 1} on your next correct answer!`;
-                }
-            } else {
-                message = `✓ Strong performance (${accuracyPercentage.toFixed(1)}% ≥ ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}%)! Auto-level is disabled — use manual override to advance.`;
-            }
-        } else if (accuracyPercentage >= 80) {
-            // Close to leveling up
-            barPercentage = ((accuracyPercentage - 80) / (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - 80)) * 100;
-            barColor = '#84cc16'; // Light green
-            const pointsNeeded = (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - accuracyPercentage).toFixed(1);
-            // Calculate how many more correct answers needed
-            const totalRecent = recentDrills.length;
-            const currentCorrect = correctCount;
-            const targetCorrect = Math.ceil((AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY / 100) * totalRecent);
-            const needCorrect = Math.max(0, targetCorrect - currentCorrect);
-            message = `📈 Almost there! Need ${pointsNeeded}% more accuracy (≈${needCorrect} more correct answer${needCorrect !== 1 ? 's' : ''} in recent ${totalRecent}) to reach ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% and level up.`;
-        } else if (accuracyPercentage >= 70) {
-            // Making progress
-            barPercentage = ((accuracyPercentage - 70) / 10) * 50; // 0-50% on bar
-            barColor = '#eab308'; // Yellow
-            const pointsNeeded = (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - accuracyPercentage).toFixed(1);
-            message = `📚 Keep practicing! Need ${pointsNeeded}% more accuracy to reach the ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% threshold for leveling up.`;
-        } else if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY) {
-            // Maintaining
-            barPercentage = ((accuracyPercentage - 60) / 10) * 30; // 0-30% on bar
-            barColor = '#f97316'; // Orange
-            message = `⚡ Focus on accuracy. Currently at ${accuracyPercentage.toFixed(1)}% — aim for ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% to level up. Take your time with each challenge!`;
-        } else {
-            // Struggling - might level down
-            barPercentage = (accuracyPercentage / AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY) * 20; // 0-20% on bar
-            barColor = '#ef4444'; // Red
-            if (autoLevelEnabled && currentLevel > LEVEL_LIMITS.MIN) {
-                const pointsToStable = (AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY - accuracyPercentage).toFixed(1);
-                message = `⚠️ Below ${AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY}% accuracy threshold. Need ${pointsToStable}% improvement to avoid dropping to Level ${currentLevel - 1}.`;
-            } else {
-                message = `💪 Take your time and focus (currently ${accuracyPercentage.toFixed(1)}%). Every challenge helps you improve! Aim for ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% to advance.`;
-            }
-        }
-        
-        progressBarFill.style.width = `${barPercentage}%`;
-        progressBarFill.style.backgroundColor = barColor;
-        progressMessage.textContent = message;
-        progressMessage.className = 'mt-progress-message';
+  renderLevelProgress() {
+    const progressLevel = this.domCache.query('#progress-level');
+    const progressAccuracy = this.domCache.query('#progress-accuracy');
+    const progressBarFill = this.domCache.query('#progress-bar-fill');
+    const progressMessage = this.domCache.query('#progress-message');
+
+    if (!progressLevel || !progressAccuracy || !progressBarFill || !progressMessage) {
+      return;
     }
 
-    /**
+    const currentLevel = this.stateManager.settings.lessonLevel;
+    const recentHistory = this.stateManager.stats.history;
+    const autoLevelEnabled = this.stateManager.settings.autoLevel;
+
+    // Update current level
+    progressLevel.textContent = currentLevel;
+
+    // Check if we have enough history
+    if (recentHistory.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) {
+      const needed = AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD - recentHistory.length;
+      progressAccuracy.textContent = '--';
+      progressBarFill.style.width = '0%';
+      progressBarFill.style.backgroundColor = '#6b7280'; // Gray
+      progressMessage.textContent = `Complete ${needed} more challenge${needed > 1 ? 's' : ''} to unlock progress tracking`;
+      progressMessage.className = 'mt-progress-message';
+      return;
+    }
+
+    // Calculate recent accuracy
+    const recentDrills = recentHistory.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
+    const correctCount = recentDrills.filter(entry => entry.correct).length;
+    const accuracyPercentage = (correctCount / recentDrills.length) * 100;
+
+    progressAccuracy.textContent = `${accuracyPercentage.toFixed(1)}%`;
+
+    // Update progress bar (0-100% mapped to accuracy 60-90%)
+    let barPercentage = 0;
+    let barColor = '#ef4444'; // Red (struggling)
+    let message = '';
+
+    if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY) {
+      // Ready to level up (or would level up if auto-level enabled)
+      barPercentage = 100;
+      barColor = '#10b981'; // Green
+      if (autoLevelEnabled) {
+        if (currentLevel >= KOCH_SEQUENCE.length) {
+          message = '🎉 Maximum level reached! You\'ve mastered all characters!';
+        } else {
+          message = `🎯 Excellent! Maintaining ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}%+ accuracy — you\'ll advance to Level ${currentLevel + 1} on your next correct answer!`;
+        }
+      } else {
+        message = `✓ Strong performance (${accuracyPercentage.toFixed(1)}% ≥ ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}%)! Auto-level is disabled — use manual override to advance.`;
+      }
+    } else if (accuracyPercentage >= 80) {
+      // Close to leveling up
+      barPercentage = ((accuracyPercentage - 80) / (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - 80)) * 100;
+      barColor = '#84cc16'; // Light green
+      const pointsNeeded = (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - accuracyPercentage).toFixed(1);
+      // Calculate how many more correct answers needed
+      const totalRecent = recentDrills.length;
+      const currentCorrect = correctCount;
+      const targetCorrect = Math.ceil((AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY / 100) * totalRecent);
+      const needCorrect = Math.max(0, targetCorrect - currentCorrect);
+      message = `📈 Almost there! Need ${pointsNeeded}% more accuracy (≈${needCorrect} more correct answer${needCorrect !== 1 ? 's' : ''} in recent ${totalRecent}) to reach ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% and level up.`;
+    } else if (accuracyPercentage >= 70) {
+      // Making progress
+      barPercentage = ((accuracyPercentage - 70) / 10) * 50; // 0-50% on bar
+      barColor = '#eab308'; // Yellow
+      const pointsNeeded = (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - accuracyPercentage).toFixed(1);
+      message = `📚 Keep practicing! Need ${pointsNeeded}% more accuracy to reach the ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% threshold for leveling up.`;
+    } else if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY) {
+      // Maintaining
+      barPercentage = ((accuracyPercentage - 60) / 10) * 30; // 0-30% on bar
+      barColor = '#f97316'; // Orange
+      message = `⚡ Focus on accuracy. Currently at ${accuracyPercentage.toFixed(1)}% — aim for ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% to level up. Take your time with each challenge!`;
+    } else {
+      // Struggling - might level down
+      barPercentage = (accuracyPercentage / AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY) * 20; // 0-20% on bar
+      barColor = '#ef4444'; // Red
+      if (autoLevelEnabled && currentLevel > LEVEL_LIMITS.MIN) {
+        const pointsToStable = (AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY - accuracyPercentage).toFixed(1);
+        message = `⚠️ Below ${AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY}% accuracy threshold. Need ${pointsToStable}% improvement to avoid dropping to Level ${currentLevel - 1}.`;
+      } else {
+        message = `💪 Take your time and focus (currently ${accuracyPercentage.toFixed(1)}%). Every challenge helps you improve! Aim for ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% to advance.`;
+      }
+    }
+
+    progressBarFill.style.width = `${barPercentage}%`;
+    progressBarFill.style.backgroundColor = barColor;
+    progressMessage.textContent = message;
+    progressMessage.className = 'mt-progress-message';
+  }
+
+  /**
      * Render the difficulty display for the current challenge
      * Shows a color bar, numeric value, and text label
      * @private
      */
-    renderDifficultyDisplay() {
-        const display = this.domCache.query('#difficulty-display');
-        const bar = this.domCache.query('#difficulty-bar');
-        const number = this.domCache.query('#difficulty-number');
-        const label = this.domCache.query('#difficulty-label');
-        
-        if (!display || !this.currentChallenge) {
-            display?.classList.add('hidden');
-            return;
-        }
-        
-        // Show the display
-        display.classList.remove('hidden');
-        
-        // Update bar width (difficulty is 1-10)
-        const percentage = (this.lastChallengeDifficulty / 10) * 100;
-        if (bar) bar.style.width = percentage + '%';
-        
-        // Update color
-        const color = this._getDifficultyColor(this.lastChallengeDifficulty);
-        if (bar) bar.style.backgroundColor = color;
-        
-        // Update number and label
-        if (number) number.textContent = `${Math.round(this.lastChallengeDifficulty)}/10`;
-        if (label) label.textContent = this._getDifficultyLabelForChallenge(this.lastChallengeDifficulty);
+  renderDifficultyDisplay() {
+    const display = this.domCache.query('#difficulty-display');
+    const bar = this.domCache.query('#difficulty-bar');
+    const number = this.domCache.query('#difficulty-number');
+    const label = this.domCache.query('#difficulty-label');
+
+    if (!display || !this.currentChallenge) {
+      display?.classList.add('hidden');
+      return;
     }
 
-    /**
+    // Show the display
+    display.classList.remove('hidden');
+
+    // Update bar width (difficulty is 1-10)
+    const percentage = (this.lastChallengeDifficulty / 10) * 100;
+    if (bar) {
+      bar.style.width = percentage + '%';
+    }
+
+    // Update color
+    const color = this._getDifficultyColor(this.lastChallengeDifficulty);
+    if (bar) {
+      bar.style.backgroundColor = color;
+    }
+
+    // Update number and label
+    if (number) {
+      number.textContent = `${Math.round(this.lastChallengeDifficulty)}/10`;
+    }
+    if (label) {
+      label.textContent = this._getDifficultyLabelForChallenge(this.lastChallengeDifficulty);
+    }
+  }
+
+  /**
      * Update weak character emphasis feedback
      * Shows which weak characters are being emphasized this session
      * @private
      */
-    updateWeakCharacterFeedback() {
-        // Ensure sessionMetrics exists
-        if (!this.stateManager.stats.sessionMetrics) {
-            this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
-        }
-        const weakChars = this.stateManager.stats.sessionMetrics.weakCharsFocused || [];
-        if (weakChars.length > 0 && this.sessionChallengesCount >= 3) {
-            // Only show after a few challenges to avoid showing immediately
-            this.dom.displays.weakCharFeedback.classList.remove('hidden');
-            this.dom.displays.weakCharList.textContent = weakChars.join(', ');
-        } else {
-            this.dom.displays.weakCharFeedback.classList.add('hidden');
-        }
+  updateWeakCharacterFeedback() {
+    // Ensure sessionMetrics exists
+    if (!this.stateManager.stats.sessionMetrics) {
+      this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
     }
+    const weakChars = this.stateManager.stats.sessionMetrics.weakCharsFocused || [];
+    if (weakChars.length > 0 && this.sessionChallengesCount >= 3) {
+      // Only show after a few challenges to avoid showing immediately
+      this.dom.displays.weakCharFeedback.classList.remove('hidden');
+      this.dom.displays.weakCharList.textContent = weakChars.join(', ');
+    } else {
+      this.dom.displays.weakCharFeedback.classList.add('hidden');
+    }
+  }
 
-    /**
+  /**
      * Render Koch progress grid with unlocked/manual indicators
      * @private
      */
-    renderKochGrid() {
-        const grid = this.domCache.query('#koch-grid');
-        const badge = this.domCache.query('#level-badge');
-        if (!grid) return;
-
-        const lvlIdx = this.stateManager.settings.lessonLevel;
-        const manual = this.stateManager.settings.manualChars;
-
-        const fragment = document.createDocumentFragment();
-        KOCH_SEQUENCE.forEach((char, idx) => {
-            const btn = document.createElement('button');
-            btn.className = 'mt-char-box mt-koch-btn';
-            btn.textContent = char;
-            btn.dataset.char = char;
-
-            const isInLevel = idx < lvlIdx;
-            const isManual = manual.includes(char);
-
-            if (isInLevel && !isManual) btn.classList.add(CSS_CLASSES.UNLOCKED);
-            else if (isManual) btn.classList.add(CSS_CLASSES.MANUAL);
-
-            fragment.appendChild(btn);
-        });
-
-        grid.innerHTML = '';
-        grid.appendChild(fragment);
-        
-        if (badge) badge.textContent = `Level ${lvlIdx}`;
+  renderKochGrid() {
+    const grid = this.domCache.query('#koch-grid');
+    const badge = this.domCache.query('#level-badge');
+    if (!grid) {
+      return;
     }
 
-    /**
+    const lvlIdx = this.stateManager.settings.lessonLevel;
+    const manual = this.stateManager.settings.manualChars;
+
+    const fragment = document.createDocumentFragment();
+    KOCH_SEQUENCE.forEach((char, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'mt-char-box mt-koch-btn';
+      btn.textContent = char;
+      btn.dataset.char = char;
+
+      const isInLevel = idx < lvlIdx;
+      const isManual = manual.includes(char);
+
+      if (isInLevel && !isManual) {
+        btn.classList.add(CSS_CLASSES.UNLOCKED);
+      } else if (isManual) {
+        btn.classList.add(CSS_CLASSES.MANUAL);
+      }
+
+      fragment.appendChild(btn);
+    });
+
+    grid.innerHTML = '';
+    grid.appendChild(fragment);
+
+    if (badge) {
+      badge.textContent = `Level ${lvlIdx}`;
+    }
+  }
+
+  /**
      * Render guide tab with course roadmap and abbreviation reference
      * @private
      */
-    renderGuide() {
-        const roadmapList = this.domCache.query('#roadmap-list');
-        const abbrGrid = this.domCache.query('#abbr-grid');
+  renderGuide() {
+    const roadmapList = this.domCache.query('#roadmap-list');
+    const abbrGrid = this.domCache.query('#abbr-grid');
 
-        if (roadmapList) {
-            const fragment = document.createDocumentFragment();
-            let startIdx = 0;
-            
-            KOCH_LEVELS.forEach(chunk => {
-                const endIdx = Math.min(chunk.end, KOCH_SEQUENCE.length);
-                const chars = KOCH_SEQUENCE.slice(startIdx, endIdx).join(' ');
-                const levelLabel = `Level ${startIdx + 1}-${endIdx}`;
-                
-                if (chars) {
-                    const item = document.createElement('div');
-                    item.className = 'mt-roadmap-chunk';
-                    item.innerHTML = `
+    if (roadmapList) {
+      const fragment = document.createDocumentFragment();
+      let startIdx = 0;
+
+      KOCH_LEVELS.forEach(chunk => {
+        const endIdx = Math.min(chunk.end, KOCH_SEQUENCE.length);
+        const chars = KOCH_SEQUENCE.slice(startIdx, endIdx).join(' ');
+        const levelLabel = `Level ${startIdx + 1}-${endIdx}`;
+
+        if (chars) {
+          const item = document.createElement('div');
+          item.className = 'mt-roadmap-chunk';
+          item.innerHTML = `
                         <div class="mt-roadmap-label">${levelLabel}</div>
                         <div class="mt-roadmap-content">
                             <div class="mt-roadmap-chars">${chars}</div>
                             <div class="mt-roadmap-desc">${chunk.description}</div>
                         </div>
                     `;
-                    fragment.appendChild(item);
-                }
-                startIdx = endIdx;
-            });
-            
-            roadmapList.innerHTML = '';
-            roadmapList.appendChild(fragment);
+          fragment.appendChild(item);
         }
+        startIdx = endIdx;
+      });
 
-        if (abbrGrid) {
-            const fragment = document.createDocumentFragment();
-            COMMON_ABBR.forEach(abbr => {
-                const card = document.createElement('div');
-                card.className = 'mt-abbr-card';
-                card.innerHTML = `<div class="mt-abbr-code">${abbr.code}</div> <div class="mt-abbr-meaning">${abbr.meaning}</div>`;
-                fragment.appendChild(card);
-            });
-            abbrGrid.innerHTML = '';
-            abbrGrid.appendChild(fragment);
-        }
+      roadmapList.innerHTML = '';
+      roadmapList.appendChild(fragment);
     }
 
-    /**
+    if (abbrGrid) {
+      const fragment = document.createDocumentFragment();
+      COMMON_ABBR.forEach(abbr => {
+        const card = document.createElement('div');
+        card.className = 'mt-abbr-card';
+        card.innerHTML = `<div class="mt-abbr-code">${abbr.code}</div> <div class="mt-abbr-meaning">${abbr.meaning}</div>`;
+        fragment.appendChild(card);
+      });
+      abbrGrid.innerHTML = '';
+      abbrGrid.appendChild(fragment);
+    }
+  }
+
+  /**
      * Update stats view with accuracy percentage and recent history
      * @private
      */
-    renderStats() {
-        const accuracyElement = this.domCache.query('#stat-accuracy');
-        const drillsElement = this.domCache.query('#stat-drills');
-        const historyList = this.domCache.query('#history-list');
+  renderStats() {
+    const accuracyElement = this.domCache.query('#stat-accuracy');
+    const drillsElement = this.domCache.query('#stat-drills');
+    const historyList = this.domCache.query('#history-list');
 
-        if (accuracyElement) {
-            const accuracyPercentage = new AccuracyTracker(this.stateManager.stats.accuracy).getOverallAccuracy();
-            accuracyElement.textContent = accuracyPercentage + '%';
-        }
-
-        if (drillsElement) {
-            drillsElement.textContent = this.stateManager.stats.history.length;
-        }
-
-        if (historyList) {
-            const fragment = document.createDocumentFragment();
-            this.stateManager.stats.history.slice(0, UI_RENDERING.HISTORY_DISPLAY_LIMIT).forEach((entry) => {
-                const item = document.createElement('div');
-                item.className = `mt-history-item ${entry.correct ? CSS_CLASSES.SUCCESS : CSS_CLASSES.ERROR}`;
-                const timeElapsedFormatted = formatTimeElapsed(Date.now() - entry.timestamp);
-                item.innerHTML = `<span class="mt-history-result">${entry.correct ? '✓' : '✗'}</span> <span class="mt-history-text">${entry.challenge}</span> <span class="mt-history-time">${timeElapsedFormatted} ago</span>`;
-                fragment.appendChild(item);
-            });
-            historyList.innerHTML = '';
-            historyList.appendChild(fragment);
-        }
-
-        this.renderSessionSummary();
-
-        // Render character mastery breakdown
-        this.renderCharacterBreakdown();
+    if (accuracyElement) {
+      const accuracyPercentage = new AccuracyTracker(this.stateManager.stats.accuracy).getOverallAccuracy();
+      accuracyElement.textContent = accuracyPercentage + '%';
     }
 
-    /**
+    if (drillsElement) {
+      drillsElement.textContent = this.stateManager.stats.history.length;
+    }
+
+    if (historyList) {
+      const fragment = document.createDocumentFragment();
+      this.stateManager.stats.history.slice(0, UI_RENDERING.HISTORY_DISPLAY_LIMIT).forEach((entry) => {
+        const item = document.createElement('div');
+        item.className = `mt-history-item ${entry.correct ? CSS_CLASSES.SUCCESS : CSS_CLASSES.ERROR}`;
+        const timeElapsedFormatted = formatTimeElapsed(Date.now() - entry.timestamp);
+        item.innerHTML = `<span class="mt-history-result">${entry.correct ? '✓' : '✗'}</span> <span class="mt-history-text">${entry.challenge}</span> <span class="mt-history-time">${timeElapsedFormatted} ago</span>`;
+        fragment.appendChild(item);
+      });
+      historyList.innerHTML = '';
+      historyList.appendChild(fragment);
+    }
+
+    this.renderSessionSummary();
+
+    // Render character mastery breakdown
+    this.renderCharacterBreakdown();
+  }
+
+  /**
      * Render session summary with improvements
      * @private
      */
-    renderSessionSummary() {
-        const sessionCard = this.domCache.query('#session-summary-card');
-        const sessionTitle = this.domCache.query('#session-summary-title');
-        const sessionChallenges = this.domCache.query('#session-challenges');
-        const improvementsList = this.domCache.query('#session-improvements');
-        const weakCharsDiv = this.domCache.query('#session-weak-chars');
-        const weakList = this.domCache.query('#session-weak-list');
+  renderSessionSummary() {
+    const sessionCard = this.domCache.query('#session-summary-card');
+    const sessionTitle = this.domCache.query('#session-summary-title');
+    const sessionChallenges = this.domCache.query('#session-challenges');
+    const improvementsList = this.domCache.query('#session-improvements');
+    const weakCharsDiv = this.domCache.query('#session-weak-chars');
+    const weakList = this.domCache.query('#session-weak-list');
 
-        if (!sessionCard) return;
-
-        // Ensure sessionMetrics exists
-        if (!this.stateManager.stats.sessionMetrics) {
-            this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
-        }
-        
-        const sessionMetrics = this.stateManager.stats.sessionMetrics;
-        const challengesCount = sessionMetrics.challengesInSession || 0;
-
-        if (challengesCount === 0) {
-            sessionCard.classList.add('hidden');
-            return;
-        }
-
-        sessionCard.classList.remove('hidden');
-        
-        // Update label: "Previous Session" if showing cached data, "This Session" if showing current session
-        if (sessionTitle) {
-            sessionTitle.textContent = this.sessionChallengesCount === 0 ? '📊 Previous Session' : '📊 This Session';
-        }
-        
-        if (sessionChallenges) sessionChallenges.textContent = challengesCount;
-
-        // Show weak chars focused
-        const weakChars = sessionMetrics.weakCharsFocused || [];
-        if (weakChars.length > 0 && weakCharsDiv && weakList) {
-            weakCharsDiv.classList.remove('hidden');
-            weakList.textContent = weakChars.join(', ');
-        } else if (weakCharsDiv) {
-            weakCharsDiv.classList.add('hidden');
-        }
-
-        // Calculate improvements
-        if (improvementsList) {
-            const startAccuracy = sessionMetrics.sessionStartAccuracy || {};
-            const improvements = [];
-
-            Object.keys(this.stateManager.stats.accuracy).forEach(char => {
-                const stats = this.stateManager.stats.accuracy[char];
-                if (stats.total === 0) return;
-
-                const currentAcc = (stats.correct / stats.total) * 100;
-                const startAcc = (startAccuracy[char] || 0) * 100;
-                const improvement = currentAcc - startAcc;
-
-                // Show significant improvements (at least 5% or new character)
-                if (improvement >= 5 || (startAcc === 0 && currentAcc > 0)) {
-                    improvements.push({
-                        char,
-                        improvement,
-                        currentAcc,
-                        isNew: startAcc === 0
-                    });
-                }
-            });
-
-            // Sort by improvement
-            improvements.sort((a, b) => b.improvement - a.improvement);
-
-            if (improvements.length > 0) {
-                const fragment = document.createDocumentFragment();
-                const title = document.createElement('p');
-                title.className = 'mt-label';
-                title.textContent = 'Improvements:';
-                fragment.appendChild(title);
-
-                improvements.slice(0, 5).forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'mt-improvement-item';
-                    const emoji = item.isNew ? '🆕' : '📈';
-                    const improvementText = item.isNew 
-                        ? `${item.char}: ${Math.round(item.currentAcc)}% (new!)` 
-                        : `${item.char}: +${Math.round(item.improvement)}% → ${Math.round(item.currentAcc)}%`;
-                    div.textContent = `${emoji} ${improvementText}`;
-                    fragment.appendChild(div);
-                });
-
-                improvementsList.innerHTML = '';
-                improvementsList.appendChild(fragment);
-            } else {
-                improvementsList.innerHTML = '<p class="mt-text-muted" style="font-size: 0.9rem;">Keep practicing to see improvements!</p>';
-            }
-        }
+    if (!sessionCard) {
+      return;
     }
 
-    /**
+    // Ensure sessionMetrics exists
+    if (!this.stateManager.stats.sessionMetrics) {
+      this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+    }
+
+    const sessionMetrics = this.stateManager.stats.sessionMetrics;
+    const challengesCount = sessionMetrics.challengesInSession || 0;
+
+    if (challengesCount === 0) {
+      sessionCard.classList.add('hidden');
+      return;
+    }
+
+    sessionCard.classList.remove('hidden');
+
+    // Update label: "Previous Session" if showing cached data, "This Session" if showing current session
+    if (sessionTitle) {
+      sessionTitle.textContent = this.sessionChallengesCount === 0 ? '📊 Previous Session' : '📊 This Session';
+    }
+
+    if (sessionChallenges) {
+      sessionChallenges.textContent = challengesCount;
+    }
+
+    // Show weak chars focused
+    const weakChars = sessionMetrics.weakCharsFocused || [];
+    if (weakChars.length > 0 && weakCharsDiv && weakList) {
+      weakCharsDiv.classList.remove('hidden');
+      weakList.textContent = weakChars.join(', ');
+    } else if (weakCharsDiv) {
+      weakCharsDiv.classList.add('hidden');
+    }
+
+    // Calculate improvements
+    if (improvementsList) {
+      const startAccuracy = sessionMetrics.sessionStartAccuracy || {};
+      const improvements = [];
+
+      Object.keys(this.stateManager.stats.accuracy).forEach(char => {
+        const stats = this.stateManager.stats.accuracy[char];
+        if (stats.total === 0) {
+          return;
+        }
+
+        const currentAcc = (stats.correct / stats.total) * 100;
+        const startAcc = (startAccuracy[char] || 0) * 100;
+        const improvement = currentAcc - startAcc;
+
+        // Show significant improvements (at least 5% or new character)
+        if (improvement >= 5 || (startAcc === 0 && currentAcc > 0)) {
+          improvements.push({
+            char,
+            improvement,
+            currentAcc,
+            isNew: startAcc === 0
+          });
+        }
+      });
+
+      // Sort by improvement
+      improvements.sort((a, b) => b.improvement - a.improvement);
+
+      if (improvements.length > 0) {
+        const fragment = document.createDocumentFragment();
+        const title = document.createElement('p');
+        title.className = 'mt-label';
+        title.textContent = 'Improvements:';
+        fragment.appendChild(title);
+
+        improvements.slice(0, 5).forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'mt-improvement-item';
+          const emoji = item.isNew ? '🆕' : '📈';
+          const improvementText = item.isNew
+            ? `${item.char}: ${Math.round(item.currentAcc)}% (new!)`
+            : `${item.char}: +${Math.round(item.improvement)}% → ${Math.round(item.currentAcc)}%`;
+          div.textContent = `${emoji} ${improvementText}`;
+          fragment.appendChild(div);
+        });
+
+        improvementsList.innerHTML = '';
+        improvementsList.appendChild(fragment);
+      } else {
+        improvementsList.innerHTML = '<p class="mt-text-muted" style="font-size: 0.9rem;">Keep practicing to see improvements!</p>';
+      }
+    }
+  }
+
+  /**
      * Render per-character mastery breakdown with progress bars and tiers
      * @private
      */
-    renderCharacterBreakdown() {
-        const container = this.domCache.query('#character-breakdown');
-        if (!container) return;
+  renderCharacterBreakdown() {
+    const container = this.domCache.query('#character-breakdown');
+    if (!container) {
+      return;
+    }
 
-        const tracker = this.accuracyTracker;
-        const allChars = KOCH_SEQUENCE;
-        const weakChars = tracker.getWeakCharacters();
+    const tracker = this.accuracyTracker;
+    const allChars = KOCH_SEQUENCE;
+    const weakChars = tracker.getWeakCharacters();
 
-        // Create mastery tier mapping function
-        const getMasteryTier = (accuracy, attempts) => {
-            if (attempts === 0) return { tier: 'Untouched', icon: '○', color: '#9ca3af', level: 0 };
-            if (accuracy < 30) return { tier: 'Beginner', icon: '★✩✩✩✩', color: '#ef4444', level: 1 };
-            if (accuracy < 60) return { tier: 'Learning', icon: '★★✩✩✩', color: '#f97316', level: 2 };
-            if (accuracy < 75) return { tier: 'Proficient', icon: '★★★✩✩', color: '#eab308', level: 3 };
-            if (accuracy < 90) return { tier: 'Expert', icon: '★★★★✩', color: '#84cc16', level: 4 };
-            return { tier: 'Master', icon: '★★★★★', color: '#10b981', level: 5 };
-        };
+    // Create mastery tier mapping function
+    const getMasteryTier = (accuracy, attempts) => {
+      if (attempts === 0) {
+        return { tier: 'Untouched', icon: '○', color: '#9ca3af', level: 0 };
+      }
+      if (accuracy < 30) {
+        return { tier: 'Beginner', icon: '★✩✩✩✩', color: '#ef4444', level: 1 };
+      }
+      if (accuracy < 60) {
+        return { tier: 'Learning', icon: '★★✩✩✩', color: '#f97316', level: 2 };
+      }
+      if (accuracy < 75) {
+        return { tier: 'Proficient', icon: '★★★✩✩', color: '#eab308', level: 3 };
+      }
+      if (accuracy < 90) {
+        return { tier: 'Expert', icon: '★★★★✩', color: '#84cc16', level: 4 };
+      }
+      return { tier: 'Master', icon: '★★★★★', color: '#10b981', level: 5 };
+    };
 
-        const fragment = document.createDocumentFragment();
+    const fragment = document.createDocumentFragment();
 
-        allChars.forEach((char) => {
-            const stats = tracker.getCharacterStats(char);
-            const accuracy = tracker.getAccuracy(char);
-            const attempts = stats ? stats.total : 0;
-            const mastery = getMasteryTier(accuracy, attempts);
-            const isWeak = weakChars.includes(char);
+    allChars.forEach((char) => {
+      const stats = tracker.getCharacterStats(char);
+      const accuracy = tracker.getAccuracy(char);
+      const attempts = stats ? stats.total : 0;
+      const mastery = getMasteryTier(accuracy, attempts);
+      const isWeak = weakChars.includes(char);
 
-            // Create character card
-            const card = document.createElement('div');
-            card.className = `mt-char-card ${isWeak ? 'mt-char-weak' : ''}`;
-            card.setAttribute('data-action', `char:${char}`);
-            card.style.borderLeftColor = mastery.color;
-            card.style.cursor = 'pointer';
-            card.title = `Click to view details for ${char}`;
+      // Create character card
+      const card = document.createElement('div');
+      card.className = `mt-char-card ${isWeak ? 'mt-char-weak' : ''}`;
+      card.setAttribute('data-action', `char:${char}`);
+      card.style.borderLeftColor = mastery.color;
+      card.style.cursor = 'pointer';
+      card.title = `Click to view details for ${char}`;
 
-            let html = `<div class="mt-char-header">
+      let html = `<div class="mt-char-header">
                 <span class="mt-char-letter">${char}</span>
                 <span class="mt-char-tier" style="color: ${mastery.color};">${mastery.icon}</span>
             </div>
@@ -1761,89 +1886,99 @@ export class MorseTrainer {
                 <span class="mt-char-attempts">${attempts} reps</span>
             </div>`;
 
-            if (isWeak) {
-                html += `<div class="mt-char-warning">⚠️ Weak - needs practice</div>`;
-            }
+      if (isWeak) {
+        html += '<div class="mt-char-warning">⚠️ Weak - needs practice</div>';
+      }
 
-            card.innerHTML = html;
-            fragment.appendChild(card);
-        });
+      card.innerHTML = html;
+      fragment.appendChild(card);
+    });
 
-        container.innerHTML = '';
-        container.appendChild(fragment);
-    }
+    container.innerHTML = '';
+    container.appendChild(fragment);
+  }
 
-    /**
+  /**
      * Show detailed mastery information for a character
      * @param {string} char - The character to show details for
      * @private
      */
-    showCharacterDetail(char) {
-        const tracker = this.accuracyTracker;
-        const stats = tracker.getCharacterStats(char);
-        const accuracy = tracker.getAccuracy(char);
-        const attempts = stats ? stats.total : 0;
-        const correct = stats ? stats.correct : 0;
-        const incorrect = stats ? stats.incorrect : 0;
+  showCharacterDetail(char) {
+    const tracker = this.accuracyTracker;
+    const stats = tracker.getCharacterStats(char);
+    const accuracy = tracker.getAccuracy(char);
+    const attempts = stats ? stats.total : 0;
+    const correct = stats ? stats.correct : 0;
+    const incorrect = stats ? stats.incorrect : 0;
 
-        // Determine mastery tier
-        const getMasteryTier = (accuracy, attempts) => {
-            if (attempts === 0) return { tier: 'Untouched', icon: '○', description: 'New character - no practice yet' };
-            if (accuracy < 30) return { tier: 'Beginner', icon: '★✩✩✩✩', description: 'Just starting - needs more practice' };
-            if (accuracy < 60) return { tier: 'Learning', icon: '★★✩✩✩', description: 'Making progress - keep practicing' };
-            if (accuracy < 75) return { tier: 'Proficient', icon: '★★★✩✩', description: 'Solid foundation - good progress!' };
-            if (accuracy < 90) return { tier: 'Expert', icon: '★★★★✩', description: 'Excellent - nearly mastered!' };
-            return { tier: 'Master', icon: '★★★★★', description: 'Expert level - fully mastered!' };
-        };
+    // Determine mastery tier
+    const getMasteryTier = (accuracy, attempts) => {
+      if (attempts === 0) {
+        return { tier: 'Untouched', icon: '○', description: 'New character - no practice yet' };
+      }
+      if (accuracy < 30) {
+        return { tier: 'Beginner', icon: '★✩✩✩✩', description: 'Just starting - needs more practice' };
+      }
+      if (accuracy < 60) {
+        return { tier: 'Learning', icon: '★★✩✩✩', description: 'Making progress - keep practicing' };
+      }
+      if (accuracy < 75) {
+        return { tier: 'Proficient', icon: '★★★✩✩', description: 'Solid foundation - good progress!' };
+      }
+      if (accuracy < 90) {
+        return { tier: 'Expert', icon: '★★★★✩', description: 'Excellent - nearly mastered!' };
+      }
+      return { tier: 'Master', icon: '★★★★★', description: 'Expert level - fully mastered!' };
+    };
 
-        const mastery = getMasteryTier(accuracy, attempts);
+    const mastery = getMasteryTier(accuracy, attempts);
 
-        // Generate advice
-        let advice = '';
-        if (attempts === 0) {
-            advice = '💡 Practice this character to get started!';
-        } else if (accuracy < 60) {
-            advice = `⚠️ Accuracy is low (${accuracy}%). Practice this character more to improve.`;
-        } else if (accuracy < 75) {
-            advice = `📈 Good progress! Continue practicing ${char} to reach expert level.`;
-        } else if (accuracy < 90) {
-            advice = `🎯 Almost there! Just a bit more practice to master ${char}.`;
-        } else {
-            advice = `🎉 Excellent! You've mastered ${char}. Keep reinforcing!`;
-        }
-
-        // Update modal content
-        this.container.querySelector('#char-detail-name').textContent = `Character: ${char}`;
-        this.container.querySelector('#char-detail-tier').innerHTML = `<span style="font-size: 1.2em;">${mastery.icon}</span> ${mastery.tier}`;
-        this.container.querySelector('#char-detail-accuracy').textContent = `${accuracy}%`;
-        this.container.querySelector('#char-detail-attempts').textContent = attempts;
-        this.container.querySelector('#char-detail-correct').textContent = correct;
-        this.container.querySelector('#char-detail-incorrect').textContent = incorrect;
-        this.container.querySelector('#char-detail-advice').innerHTML = `<p>${advice}</p><p style="font-size: 0.9em; color: #666;">${mastery.description}</p>`;
-
-        // Show modal
-        this.toggleModal('characterDetail', true);
+    // Generate advice
+    let advice = '';
+    if (attempts === 0) {
+      advice = '💡 Practice this character to get started!';
+    } else if (accuracy < 60) {
+      advice = `⚠️ Accuracy is low (${accuracy}%). Practice this character more to improve.`;
+    } else if (accuracy < 75) {
+      advice = `📈 Good progress! Continue practicing ${char} to reach expert level.`;
+    } else if (accuracy < 90) {
+      advice = `🎯 Almost there! Just a bit more practice to master ${char}.`;
+    } else {
+      advice = `🎉 Excellent! You've mastered ${char}. Keep reinforcing!`;
     }
 
-    /**
+    // Update modal content
+    this.container.querySelector('#char-detail-name').textContent = `Character: ${char}`;
+    this.container.querySelector('#char-detail-tier').innerHTML = `<span style="font-size: 1.2em;">${mastery.icon}</span> ${mastery.tier}`;
+    this.container.querySelector('#char-detail-accuracy').textContent = `${accuracy}%`;
+    this.container.querySelector('#char-detail-attempts').textContent = attempts;
+    this.container.querySelector('#char-detail-correct').textContent = correct;
+    this.container.querySelector('#char-detail-incorrect').textContent = incorrect;
+    this.container.querySelector('#char-detail-advice').innerHTML = `<p>${advice}</p><p style="font-size: 0.9em; color: #666;">${mastery.description}</p>`;
+
+    // Show modal
+    this.toggleModal('characterDetail', true);
+  }
+
+  /**
      * Get the difficulty preset label for display
      * @param {number} preference - Difficulty preference (1-5)
      * @returns {string} Label like "Medium", "Hard", etc.
      * @private
      */
-    _getDifficultyLabel(preference) {
-        const preset = DIFFICULTY_PRESETS[preference];
-        return preset ? preset.name : 'Medium';
-    }
+  _getDifficultyLabel(preference) {
+    const preset = DIFFICULTY_PRESETS[preference];
+    return preset ? preset.name : 'Medium';
+  }
 
-    /**
+  /**
      * Get the learning speed preset description for display
      * @param {number} preference - Difficulty preference (1-5)
      * @returns {string} Description of the preset
      * @private
      */
-    _getDifficultyDescription(preference) {
-        const preset = DIFFICULTY_PRESETS[preference];
-        return preset ? preset.description : 'Balanced progression. Recommended for most learners.';
-    }
+  _getDifficultyDescription(preference) {
+    const preset = DIFFICULTY_PRESETS[preference];
+    return preset ? preset.description : 'Balanced progression. Recommended for most learners.';
+  }
 }
