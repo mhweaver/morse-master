@@ -157,7 +157,7 @@ describe('Callsign Generation', () => {
     it('should frequently include user callsign in challenges when set', () => {
       const userGen = new ContentGenerator(tracker, 3, 'K1ABC');
       let userCallsignCount = 0;
-      const totalChallenges = 200; // Run more challenges for better statistical accuracy
+      const totalChallenges = 500; // Large sample for statistical reliability
 
       for (let i = 0; i < totalChallenges; i++) {
         const { challenge } = userGen.generateChallenge(40, []); // All characters
@@ -166,9 +166,11 @@ describe('Callsign Generation', () => {
         }
       }
 
-      // User callsign should appear in at least 3-4% of challenges
+      // User callsign should appear in at least 2-3% of challenges
       // (With 10x weighting in filtered pool and 5x content type weighting)
-      expect(userCallsignCount).toBeGreaterThanOrEqual(3);
+      // Expected ~15 occurrences out of 500, so threshold of 8 (1.6%) prevents flakiness
+      // while still validating the weighting feature works
+      expect(userCallsignCount).toBeGreaterThanOrEqual(8);
     });
   });
 

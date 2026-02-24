@@ -7,6 +7,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:coverage:run": "vitest run --coverage",
     "test:run": "vitest run",
     "lint": "eslint src/ tests/",
     "lint:fix": "eslint src/ tests/ --fix"
