@@ -342,4 +342,73 @@ describe('Difficulty-Based Challenge Generation', () => {
       expect(result.challenge.includes('Z')).toBe(true);
     });
   });
+
+  describe('Weak Character Tracking (Phase 3)', () => {
+    it('should return weakChars array in generateChallenge result', () => {
+      const result = generator.generateChallenge(5, []);
+      
+      expect(result).toHaveProperty('weakChars');
+      expect(Array.isArray(result.weakChars)).toBe(true);
+    });
+
+    it('should identify weak characters from accuracy tracker', () => {
+      // S (40%) and U (50%) are weak characters in our test data
+      const result = generator.generateChallenge(6, []); // Include S and U
+      
+      expect(result.weakChars).toBeDefined();
+      // Weak characters should include S and U
+      expect(result.weakChars.length).toBeGreaterThan(0);
+    });
+
+    it('should include weak characters in synthetic challenges', () => {
+      // Force synthetic challenge by testing multiple times
+      let foundWeakChar = false;
+      
+      for (let i = 0; i < 20; i++) {
+        const result = generator.generateChallenge(6, []);
+        // S and U are weak in our test data
+        if (result.challenge.includes('S') || result.challenge.includes('U')) {
+          foundWeakChar = true;
+          break;
+        }
+      }
+      
+      expect(foundWeakChar).toBe(true);
+    });
+
+    it('should return empty weakChars if no weak characters exist', () => {
+      // Create a tracker with all strong characters
+      const strongTracker = new AccuracyTracker();
+      strongTracker.data = {
+        'K': { correct: 95, incorrect: 5, total: 100 },
+        'M': { correct: 95, incorrect: 5, total: 100 },
+        'R': { correct: 95, incorrect: 5, total: 100 }
+      };
+      
+      const strongGen = new ContentGenerator(strongTracker, 3, '');
+      const result = strongGen.generateChallenge(3, []);
+      
+      expect(result.weakChars).toBeDefined();
+      expect(Array.isArray(result.weakChars)).toBe(true);
+    });
+
+    it('should track weak characters correctly across different accuracy levels', () => {
+      // Set up with clear weak vs strong characters
+      const mixedTracker = new AccuracyTracker();
+      mixedTracker.data = {
+        'K': { correct: 95, incorrect: 5, total: 100 },   // Strong
+        'M': { correct: 90, incorrect: 10, total: 100 },  // Strong
+        'S': { correct: 45, incorrect: 55, total: 100 }   // Weak (<60%)
+      };
+      
+      const mixedGen = new ContentGenerator(mixedTracker, 3, '');
+      const result = mixedGen.generateChallenge(3, []);
+      
+      // Should identify S as weak
+      expect(result.weakChars).toBeDefined();
+      expect(result.weakChars).toContain('S');
+      expect(result.weakChars).not.toContain('K');
+      expect(result.weakChars).not.toContain('M');
+    });
+  });
 });

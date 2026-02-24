@@ -86,6 +86,10 @@ export class MorseTrainer {
         this.eventListeners = []; // Track listeners for cleanup
         this.kochLongPressTimers = {}; // Track long-press timers for Koch buttons
         
+        // Session tracking for warm-up/cool-down effects
+        this.sessionChallengesCount = 0;
+        this.lastSessionDateIso = this.stateManager.stats.sessionMetrics?.lastSessionDate;
+        
         // Challenge queue for batch generation
         this.challengeQueue = [];
         this.isCurrentBatchFromNewLevel = false; // Track if batch was generated before level change
@@ -131,7 +135,9 @@ export class MorseTrainer {
                 roadmap: this.container.querySelector('#roadmap-list'),
                 aiTipContainer: this.container.querySelector('#ai-tip-container'),
                 aiTipText: this.container.querySelector('#ai-tip-text'),
-                submitBtn: this.container.querySelector('#submit-btn')
+                submitBtn: this.container.querySelector('#submit-btn'),
+                weakCharFeedback: this.container.querySelector('#weak-char-feedback'),
+                weakCharList: this.container.querySelector('#weak-char-list')
             },
             modals: {
                 settings: this.container.querySelector('#modal-settings'),
@@ -173,6 +179,9 @@ export class MorseTrainer {
                         <div class="mt-card mt-play-area">
                             <div id="ai-tip-container" class="mt-ai-tip hidden">
                                 <strong>Coach's Tip:</strong> <span id="ai-tip-text"></span>
+                            </div>
+                            <div id="weak-char-feedback" class="mt-weak-char-feedback hidden">
+                                <span class="mt-weak-char-icon">🎯</span> Focusing on: <strong id="weak-char-list"></strong>
                             </div>
                             <div class="mt-play-controls">
                                 <button id="play-btn" class="mt-play-btn" data-action="togglePlay">${ICONS.play}</button>
@@ -249,6 +258,21 @@ export class MorseTrainer {
                             </div>
                         </div>
 
+                        <!-- PHASE 4: SESSION SUMMARY -->
+                        <div id="session-summary-card" class="mt-card hidden">
+                            <h3>📊 This Session</h3>
+                            <div class="mt-session-summary">
+                                <div class="mt-session-stat">
+                                    <span class="mt-label">Challenges:</span>
+                                    <span id="session-challenges" class="mt-value">0</span>
+                                </div>
+                                <div id="session-improvements" class="mt-improvements-list"></div>
+                                <div id="session-weak-chars" class="mt-weak-chars-summary hidden">
+                                    <p class="mt-text-muted">🎯 Focused on: <strong id="session-weak-list"></strong></p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- CHARACTER MASTERY BREAKDOWN -->
                         <div class="mt-card">
                             <h3>Character Mastery</h3>
@@ -301,7 +325,7 @@ export class MorseTrainer {
                             <div class="mt-form-group">
                                 <label>Challenge Difficulty <span id="display-difficulty">${this._getDifficultyLabel(DEFAULT_SETTINGS.difficultyPreference)}</span></label>
                                 <input type="range" id="input-difficulty" min="${SETTINGS_RANGES.difficultyPreference.min}" max="${SETTINGS_RANGES.difficultyPreference.max}" data-action="setting:difficulty">
-                                <p class="mt-hint">Adjusts how quickly challenges get harder and grace period for new characters</p>
+                                <p class="mt-hint" id="difficulty-description">${this._getDifficultyDescription(DEFAULT_SETTINGS.difficultyPreference)}</p>
                             </div>
                             <div class="mt-form-group">
                                 <label>Char Speed <span id="display-wpm">${DEFAULT_SETTINGS.wpm} WPM</span></label>
@@ -749,6 +773,17 @@ export class MorseTrainer {
         this.dom.inputs.user.value = '';
         this.dom.displays.feedback.classList.add('hidden');
         
+        // Phase 3: Track weak characters used in this challenge
+        if (result.weakChars && result.weakChars.length > 0) {
+            // Ensure sessionMetrics exists
+            if (!this.stateManager.stats.sessionMetrics) {
+                this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+            }
+            const weakCharSet = new Set(this.stateManager.stats.sessionMetrics.weakCharsFocused || []);
+            result.weakChars.forEach(char => weakCharSet.add(char));
+            this.stateManager.stats.sessionMetrics.weakCharsFocused = Array.from(weakCharSet);
+        }
+        
         // Calculate and store challenge difficulty (1-10 scale)
         const unlockedChars = new Set(KOCH_SEQUENCE.slice(0, this.stateManager.settings.lessonLevel));
         this.lastChallengeDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
@@ -757,6 +792,7 @@ export class MorseTrainer {
         );
         
         this.renderSubmitButton();
+        this.updateWeakCharacterFeedback(); // Phase 3: Show weak char feedback
 
         if (playNow) setTimeout(() => this.playMorse(this.currentChallenge), 100);
     }
@@ -768,6 +804,40 @@ export class MorseTrainer {
      */
     checkAnswer() {
         if (!this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent) return;
+
+        // Track session metrics
+        const today = new Date().toISOString().split('T')[0];
+        const wasNewDay = !this.lastSessionDateIso || this.lastSessionDateIso !== today;
+        if (wasNewDay) {
+            this.sessionChallengesCount = 0;
+            this.lastSessionDateIso = today;
+            
+            // Ensure sessionMetrics exists
+            if (!this.stateManager.stats.sessionMetrics) {
+                this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+            }
+            
+            // Phase 3 & 4: Reset session tracking
+            this.stateManager.stats.sessionMetrics.weakCharsFocused = [];
+            
+            // Phase 4: Save session start accuracy for comparison later
+            this.stateManager.stats.sessionMetrics.sessionStartAccuracy = {};
+            Object.keys(this.stateManager.stats.accuracy).forEach(char => {
+                const stats = this.stateManager.stats.accuracy[char];
+                const accuracy = stats.total > 0 ? (stats.correct / stats.total) : 0;
+                this.stateManager.stats.sessionMetrics.sessionStartAccuracy[char] = accuracy;
+            });
+        }
+        this.sessionChallengesCount++;
+        
+        // Ensure sessionMetrics exists
+        if (!this.stateManager.stats.sessionMetrics) {
+            this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+        }
+        
+        // Persist session metrics
+        this.stateManager.stats.sessionMetrics.challengesInSession = this.sessionChallengesCount;
+        this.stateManager.stats.sessionMetrics.lastSessionDate = today;
 
         const userAnswer = this.dom.inputs.user.value.toUpperCase().trim();
         const correctAnswer = this.currentChallenge.toUpperCase();
@@ -1118,6 +1188,7 @@ export class MorseTrainer {
     renderSettings() {
         const s = this.stateManager.settings;
         this.container.querySelector('#display-difficulty').textContent = this._getDifficultyLabel(s.difficultyPreference);
+        this.container.querySelector('#difficulty-description').textContent = this._getDifficultyDescription(s.difficultyPreference);
         this.container.querySelector('#display-wpm').textContent = s.wpm + " WPM";
         this.container.querySelector('#display-farnsworth').textContent = s.farnsworthWpm + " WPM";
         this.container.querySelector('#display-frequency').textContent = s.frequency + " Hz";
@@ -1162,6 +1233,26 @@ export class MorseTrainer {
         const btn = this.dom.displays.submitBtn;
         const disabled = !this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent;
         btn.disabled = disabled;
+    }
+
+    /**
+     * Phase 3.2: Update weak character emphasis feedback
+     * Shows which weak characters are being emphasized this session
+     * @private
+     */
+    updateWeakCharacterFeedback() {
+        // Ensure sessionMetrics exists
+        if (!this.stateManager.stats.sessionMetrics) {
+            this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+        }
+        const weakChars = this.stateManager.stats.sessionMetrics.weakCharsFocused || [];
+        if (weakChars.length > 0 && this.sessionChallengesCount >= 3) {
+            // Only show after a few challenges to avoid showing immediately
+            this.dom.displays.weakCharFeedback.classList.remove('hidden');
+            this.dom.displays.weakCharList.textContent = weakChars.join(', ');
+        } else {
+            this.dom.displays.weakCharFeedback.classList.add('hidden');
+        }
     }
 
     /**
@@ -1278,8 +1369,102 @@ export class MorseTrainer {
             historyList.appendChild(fragment);
         }
 
+        // Phase 4.2: Render session summary
+        this.renderSessionSummary();
+
         // Render character mastery breakdown
         this.renderCharacterBreakdown();
+    }
+
+    /**
+     * Phase 4.2: Render session summary with improvements
+     * @private
+     */
+    renderSessionSummary() {
+        const sessionCard = this.domCache.query('#session-summary-card');
+        const sessionChallenges = this.domCache.query('#session-challenges');
+        const improvementsList = this.domCache.query('#session-improvements');
+        const weakCharsDiv = this.domCache.query('#session-weak-chars');
+        const weakList = this.domCache.query('#session-weak-list');
+
+        if (!sessionCard) return;
+
+        // Ensure sessionMetrics exists
+        if (!this.stateManager.stats.sessionMetrics) {
+            this.stateManager.stats.sessionMetrics = { challengesInSession: 0, lastSessionDate: null, weakCharsFocused: [], sessionStartAccuracy: {} };
+        }
+        
+        const sessionMetrics = this.stateManager.stats.sessionMetrics;
+        const challengesCount = sessionMetrics.challengesInSession || 0;
+
+        if (challengesCount === 0) {
+            sessionCard.classList.add('hidden');
+            return;
+        }
+
+        sessionCard.classList.remove('hidden');
+        if (sessionChallenges) sessionChallenges.textContent = challengesCount;
+
+        // Show weak chars focused
+        const weakChars = sessionMetrics.weakCharsFocused || [];
+        if (weakChars.length > 0 && weakCharsDiv && weakList) {
+            weakCharsDiv.classList.remove('hidden');
+            weakList.textContent = weakChars.join(', ');
+        } else if (weakCharsDiv) {
+            weakCharsDiv.classList.add('hidden');
+        }
+
+        // Calculate improvements
+        if (improvementsList) {
+            const startAccuracy = sessionMetrics.sessionStartAccuracy || {};
+            const improvements = [];
+
+            Object.keys(this.stateManager.stats.accuracy).forEach(char => {
+                const stats = this.stateManager.stats.accuracy[char];
+                if (stats.total === 0) return;
+
+                const currentAcc = (stats.correct / stats.total) * 100;
+                const startAcc = (startAccuracy[char] || 0) * 100;
+                const improvement = currentAcc - startAcc;
+
+                // Show significant improvements (at least 5% or new character)
+                if (improvement >= 5 || (startAcc === 0 && currentAcc > 0)) {
+                    improvements.push({
+                        char,
+                        improvement,
+                        currentAcc,
+                        isNew: startAcc === 0
+                    });
+                }
+            });
+
+            // Sort by improvement
+            improvements.sort((a, b) => b.improvement - a.improvement);
+
+            if (improvements.length > 0) {
+                const fragment = document.createDocumentFragment();
+                const title = document.createElement('p');
+                title.className = 'mt-label';
+                title.textContent = 'Improvements:';
+                fragment.appendChild(title);
+
+                improvements.slice(0, 5).forEach(item => {
+                    const div = document.createElement('div');
+                    div.className = 'mt-improvement-item';
+                    const emoji = item.isNew ? '🆕' : '📈';
+                    const improvementText = item.isNew 
+                        ? `${item.char}: ${Math.round(item.currentAcc)}% (new!)` 
+                        : `${item.char}: +${Math.round(item.improvement)}% → ${Math.round(item.currentAcc)}%`;
+                    div.textContent = `${emoji} ${improvementText}`;
+                    fragment.appendChild(div);
+                });
+
+                improvementsList.innerHTML = '';
+                improvementsList.appendChild(fragment);
+            } else {
+                improvementsList.innerHTML = '<p class="mt-text-muted" style="font-size: 0.9rem;">Keep practicing to see improvements!</p>';
+            }
+        }
     }
 
     /**
@@ -1403,5 +1588,16 @@ export class MorseTrainer {
     _getDifficultyLabel(preference) {
         const preset = DIFFICULTY_PRESETS[preference];
         return preset ? preset.name : 'Medium';
+    }
+
+    /**
+     * Get the difficulty preset description for display
+     * @param {number} preference - Difficulty preference (1-5)
+     * @returns {string} Description of the preset
+     * @private
+     */
+    _getDifficultyDescription(preference) {
+        const preset = DIFFICULTY_PRESETS[preference];
+        return preset ? preset.description : 'Balanced challenge for steady progress. Recommended for most learners.';
     }
 }

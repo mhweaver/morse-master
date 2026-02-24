@@ -654,4 +654,226 @@ describe('MorseTrainer - Core Functionality', () => {
       expect(saveSpy).toHaveBeenCalled();
     });
   });
+
+  describe('Phase 3 & 4 Features', () => {
+    describe('Weak Character Tracking (Phase 3.2)', () => {
+      it('should initialize sessionMetrics with weakCharsFocused array', () => {
+        const stats = trainer.stateManager.stats;
+        expect(stats.sessionMetrics).toBeDefined();
+        expect(stats.sessionMetrics.weakCharsFocused).toBeDefined();
+        expect(Array.isArray(stats.sessionMetrics.weakCharsFocused)).toBe(true);
+      });
+
+      it('should track weak characters used in challenges', () => {
+        // Set up weak characters in accuracy tracker
+        trainer.stateManager.stats.accuracy = {
+          'E': { correct: 50, total: 100 },
+          'T': { correct: 40, total: 100 },
+          'A': { correct: 90, total: 100 }
+        };
+        
+        // Mock generateChallenge to return weak chars
+        vi.spyOn(trainer.contentGenerator, 'generateChallenge').mockReturnValue({
+          challenge: 'ETE',
+          meaning: '',
+          weakChars: ['E', 'T']
+        });
+
+        trainer.generateNextChallenge(false);
+
+        expect(trainer.stateManager.stats.sessionMetrics.weakCharsFocused).toContain('E');
+        expect(trainer.stateManager.stats.sessionMetrics.weakCharsFocused).toContain('T');
+      });
+
+      it('should accumulate weak characters across multiple challenges', () => {
+        trainer.stateManager.stats.sessionMetrics.weakCharsFocused = ['E'];
+
+        vi.spyOn(trainer.contentGenerator, 'generateChallenge').mockReturnValue({
+          challenge: 'TT',
+          meaning: '',
+          weakChars: ['T']
+        });
+
+        trainer.generateNextChallenge(false);
+
+        expect(trainer.stateManager.stats.sessionMetrics.weakCharsFocused).toContain('E');
+        expect(trainer.stateManager.stats.sessionMetrics.weakCharsFocused).toContain('T');
+      });
+
+      it('should update weak character feedback after 3+ challenges', () => {
+        trainer.sessionChallengesCount = 3;
+        trainer.stateManager.stats.sessionMetrics.weakCharsFocused = ['E', 'T', 'S'];
+
+        trainer.updateWeakCharacterFeedback();
+
+        expect(trainer.dom.displays.weakCharFeedback.classList.contains('hidden')).toBe(false);
+        expect(trainer.dom.displays.weakCharList.textContent).toContain('E');
+        expect(trainer.dom.displays.weakCharList.textContent).toContain('T');
+        expect(trainer.dom.displays.weakCharList.textContent).toContain('S');
+      });
+
+      it('should hide weak character feedback for fewer than 3 challenges', () => {
+        trainer.sessionChallengesCount = 2;
+        trainer.stateManager.stats.sessionMetrics.weakCharsFocused = ['E'];
+
+        trainer.updateWeakCharacterFeedback();
+
+        expect(trainer.dom.displays.weakCharFeedback.classList.contains('hidden')).toBe(true);
+      });
+    });
+
+    describe('Session Summary (Phase 4.2)', () => {
+      it('should initialize sessionStartAccuracy on new day', () => {
+        trainer.stateManager.stats.accuracy = {
+          'E': { correct: 50, total: 100 },
+          'T': { correct: 40, total: 100 }
+        };
+
+        const today = new Date().toISOString().split('T')[0];
+        trainer.lastSessionDateIso = '2026-01-01'; // Different day
+
+        trainer.dom.inputs.user.value = 'E';
+        trainer.currentChallenge = 'E';
+        trainer.hasPlayedCurrent = true;
+        trainer.checkAnswer();
+
+        expect(trainer.stateManager.stats.sessionMetrics.sessionStartAccuracy).toBeDefined();
+        expect(trainer.stateManager.stats.sessionMetrics.sessionStartAccuracy['E']).toBeCloseTo(0.5);
+        expect(trainer.stateManager.stats.sessionMetrics.sessionStartAccuracy['T']).toBeCloseTo(0.4);
+      });
+
+      it('should track session challenge count', () => {
+        trainer.dom.inputs.user.value = 'E';
+        trainer.currentChallenge = 'E';
+        trainer.hasPlayedCurrent = true;
+
+        const initialCount = trainer.sessionChallengesCount;
+        trainer.checkAnswer();
+
+        expect(trainer.sessionChallengesCount).toBe(initialCount + 1);
+        expect(trainer.stateManager.stats.sessionMetrics.challengesInSession).toBe(initialCount + 1);
+      });
+
+      it('should reset session metrics on new day', () => {
+        trainer.stateManager.stats.sessionMetrics = {
+          challengesInSession: 10,
+          lastSessionDate: '2026-01-01',
+          weakCharsFocused: ['E', 'T'],
+          sessionStartAccuracy: { 'E': 0.5 }
+        };
+
+        trainer.lastSessionDateIso = '2026-01-01';
+        trainer.sessionChallengesCount = 10;
+
+        trainer.dom.inputs.user.value = 'E';
+        trainer.currentChallenge = 'E';
+        trainer.hasPlayedCurrent = true;
+        trainer.checkAnswer();
+
+        expect(trainer.sessionChallengesCount).toBe(1);
+        expect(trainer.stateManager.stats.sessionMetrics.weakCharsFocused).toEqual([]);
+      });
+
+      it('should hide session summary when no challenges completed', () => {
+        trainer.stateManager.stats.sessionMetrics.challengesInSession = 0;
+        trainer.renderSessionSummary();
+
+        const sessionCard = trainer.domCache.query('#session-summary-card');
+        if (sessionCard) {
+          expect(sessionCard.classList.contains('hidden')).toBe(true);
+        }
+      });
+
+      it('should calculate character improvements correctly', () => {
+        trainer.stateManager.stats.sessionMetrics = {
+          challengesInSession: 5,
+          sessionStartAccuracy: {
+            'E': 0.5,
+            'T': 0.6
+          }
+        };
+
+        trainer.stateManager.stats.accuracy = {
+          'E': { correct: 60, total: 100 }, // 60% now vs 50% start = +10%
+          'T': { correct: 70, total: 100 }  // 70% now vs 60% start = +10%
+        };
+
+        trainer.renderSessionSummary();
+
+        const improvementsList = trainer.domCache.query('#session-improvements');
+        if (improvementsList) {
+          expect(improvementsList.innerHTML).toContain('E');
+          expect(improvementsList.innerHTML).toContain('T');
+        }
+      });
+    });
+
+    describe('Difficulty Preset Descriptions (Phase 3.3)', () => {
+      it('should return correct difficulty label', () => {
+        expect(trainer._getDifficultyLabel(1)).toBe('Very Easy');
+        expect(trainer._getDifficultyLabel(2)).toBe('Easy');
+        expect(trainer._getDifficultyLabel(3)).toBe('Medium');
+        expect(trainer._getDifficultyLabel(4)).toBe('Hard');
+        expect(trainer._getDifficultyLabel(5)).toBe('Very Hard');
+      });
+
+      it('should return correct difficulty description', () => {
+        const description = trainer._getDifficultyDescription(1);
+        expect(description).toContain('Gentle learning');
+        expect(description).toContain('beginners');
+      });
+
+      it('should default to Medium for invalid preset', () => {
+        expect(trainer._getDifficultyLabel(99)).toBe('Medium');
+      });
+
+      it('should update difficulty description when rendering settings', () => {
+        trainer.stateManager.settings.difficultyPreference = 4;
+        trainer.renderSettings();
+
+        const descElement = trainer.container.querySelector('#difficulty-description');
+        expect(descElement.textContent).toContain('Faster progression');
+      });
+    });
+
+    describe('Session Metrics Defensive Checks', () => {
+      it('should handle missing sessionMetrics gracefully in generateNextChallenge', () => {
+        delete trainer.stateManager.stats.sessionMetrics;
+
+        vi.spyOn(trainer.contentGenerator, 'generateChallenge').mockReturnValue({
+          challenge: 'E',
+          meaning: '',
+          weakChars: ['E']
+        });
+
+        expect(() => trainer.generateNextChallenge(false)).not.toThrow();
+        expect(trainer.stateManager.stats.sessionMetrics).toBeDefined();
+      });
+
+      it('should handle missing sessionMetrics gracefully in checkAnswer', () => {
+        delete trainer.stateManager.stats.sessionMetrics;
+
+        trainer.dom.inputs.user.value = 'E';
+        trainer.currentChallenge = 'E';
+        trainer.hasPlayedCurrent = true;
+
+        expect(() => trainer.checkAnswer()).not.toThrow();
+        expect(trainer.stateManager.stats.sessionMetrics).toBeDefined();
+      });
+
+      it('should handle missing sessionMetrics gracefully in updateWeakCharacterFeedback', () => {
+        delete trainer.stateManager.stats.sessionMetrics;
+
+        expect(() => trainer.updateWeakCharacterFeedback()).not.toThrow();
+        expect(trainer.stateManager.stats.sessionMetrics).toBeDefined();
+      });
+
+      it('should handle missing sessionMetrics gracefully in renderSessionSummary', () => {
+        delete trainer.stateManager.stats.sessionMetrics;
+
+        expect(() => trainer.renderSessionSummary()).not.toThrow();
+        expect(trainer.stateManager.stats.sessionMetrics).toBeDefined();
+      });
+    });
+  });
 });

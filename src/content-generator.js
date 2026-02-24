@@ -518,6 +518,9 @@ export class ContentGenerator {
 
     let challenge = '';
     let meaning = '';
+    
+    // Phase 3: Track weak characters for session feedback
+    const weakChars = this.accuracyTracker.getWeakCharacters();
 
     if (useRealContent) {
       const availableContentTypes = [];
@@ -542,11 +545,10 @@ export class ContentGenerator {
       meaning = typeof selectedItem === 'string' ? '' : selectedItem.meaning;
     } else {
       // Generate synthetic challenge with weak character emphasis
-      const weakChars = this.accuracyTracker.getWeakCharacters();
       challenge = this.#generateWeightedSyntheticChallenge(unlockedCharArray, weakChars);
     }
 
-    return { challenge, meaning };
+    return { challenge, meaning, weakChars };
   }
 
   /**

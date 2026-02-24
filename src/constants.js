@@ -26,7 +26,13 @@ export const DEFAULT_SETTINGS = {
 
 export const DEFAULT_STATS = {
   history: [],
-  accuracy: {}
+  accuracy: {},
+  sessionMetrics: {
+    challengesInSession: 0,
+    lastSessionDate: null,
+    weakCharsFocused: [], // Phase 3: Track weak chars emphasized this session
+    sessionStartAccuracy: {} // Phase 4: Track starting accuracy to show improvement
+  }
 };
 
 // --- Settings Ranges ---
@@ -203,30 +209,35 @@ export const DIFFICULTY = {
 export const DIFFICULTY_PRESETS = {
   1: { // Very Easy - Gentle learning for absolute beginners
     name: 'Very Easy',
+    description: 'Gentle learning curve for absolute beginners. Extended grace period for new characters.',
     NEW_CHAR_DIFFICULTY_GRACE: 3,
     EXCELLENT_PERFORMANCE_THRESHOLD: 0.95,
     POOR_PERFORMANCE_THRESHOLD: 0.70
   },
   2: { // Easy - Beginner-friendly with generous grace period
     name: 'Easy',
+    description: 'Beginner-friendly pace with forgiving thresholds. Good for casual learners.',
     NEW_CHAR_DIFFICULTY_GRACE: 2,
     EXCELLENT_PERFORMANCE_THRESHOLD: 0.90,
     POOR_PERFORMANCE_THRESHOLD: 0.65
   },
   3: { // Medium - Balanced challenge (default)
     name: 'Medium',
+    description: 'Balanced challenge for steady progress. Recommended for most learners.',
     NEW_CHAR_DIFFICULTY_GRACE: 2,
     EXCELLENT_PERFORMANCE_THRESHOLD: 0.85,
     POOR_PERFORMANCE_THRESHOLD: 0.60
   },
   4: { // Hard - More challenging progression
     name: 'Hard',
+    description: 'Faster progression with higher standards. For dedicated practice.',
     NEW_CHAR_DIFFICULTY_GRACE: 1,
     EXCELLENT_PERFORMANCE_THRESHOLD: 0.80,
     POOR_PERFORMANCE_THRESHOLD: 0.55
   },
   5: { // Very Hard - Contest prep, rapid advancement
     name: 'Very Hard',
+    description: 'Rapid advancement for contest prep. Demands high accuracy from the start.',
     NEW_CHAR_DIFFICULTY_GRACE: 1,
     EXCELLENT_PERFORMANCE_THRESHOLD: 0.75,
     POOR_PERFORMANCE_THRESHOLD: 0.50
