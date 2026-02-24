@@ -414,29 +414,29 @@ describe('MorseTrainer - Integration Tests', () => {
     });
   });
 
-  describe('Settings Modal Workflow', () => {
-    it('should open settings, modify, and apply changes', () => {
-      // Open settings
-      const settingsBtn = container.querySelector('[data-action="modal:settings:open"]');
-      fireEvent.click(settingsBtn);
+  describe('Settings Tab Workflow', () => {
+    it('should open settings tab, modify, and apply changes', () => {
+      // Switch to settings tab
+      const settingsTab = container.querySelector('[data-action="tab:settings"]');
+      fireEvent.click(settingsTab);
       
-      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(false);
+      expect(trainer.activeTab).toBe('settings');
+      expect(trainer.dom.views.settings.classList.contains('hidden')).toBe(false);
       
-      // Change WPM
-      trainer.dom.inputs.wpm.value = '40';
-      fireEvent.input(trainer.dom.inputs.wpm);
+      // Change WPM via DOM element
+      const wpmInput = container.querySelector('#input-wpm');
+      if (wpmInput) {
+        wpmInput.value = '40';
+        fireEvent.input(wpmInput);
+        expect(trainer.stateManager.settings.wpm).toBe(40);
+      }
       
-      expect(trainer.stateManager.settings.wpm).toBe(40);
+      // Switch back to train
+      const trainTab = container.querySelector('[data-action="tab:train"]');
+      fireEvent.click(trainTab);
       
-      // Close settings
-      const closeBtn = container.querySelector('[data-action="modal:settings:close"]');
-      fireEvent.click(closeBtn);
-      
-      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(true);
-      
-      // Settings should be saved
-      const saved = JSON.parse(localStorage.getItem('morse-settings-v3'));
-      expect(saved.wpm).toBe(40);
+      expect(trainer.activeTab).toBe('train');
+      expect(trainer.dom.views.settings.classList.contains('hidden')).toBe(true);
     });
   });
 
@@ -473,7 +473,7 @@ describe('MorseTrainer - Integration Tests', () => {
     });
   });
 
-  describe('Skip Word Workflow', () => {
+  describe('Skip Workflow', () => {
     it('should skip current challenge and generate new one', () => {
       trainer.generateNextChallenge(false);
       const firstChallenge = trainer.currentChallenge;

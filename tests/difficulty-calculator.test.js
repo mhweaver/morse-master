@@ -184,15 +184,15 @@ describe('DifficultyCalculator', () => {
 
   describe('Difficulty Presets', () => {
     it('should apply difficulty preset configuration', () => {
-      const easyCalc = new DifficultyCalculator(tracker, 1); // Very Easy
-      const hardCalc = new DifficultyCalculator(tracker, 5); // Very Hard
+      const fastCalc = new DifficultyCalculator(tracker, 5); // Very Fast
+      const slowCalc = new DifficultyCalculator(tracker, 1); // Very Slow
       
-      // Very Easy should have more generous thresholds
-      expect(easyCalc.difficultyConfig.NEW_CHAR_DIFFICULTY_GRACE)
-        .toBeGreaterThanOrEqual(hardCalc.difficultyConfig.NEW_CHAR_DIFFICULTY_GRACE);
+      // Very Fast should have more generous thresholds
+      expect(fastCalc.difficultyConfig.NEW_CHAR_DIFFICULTY_GRACE)
+        .toBeGreaterThanOrEqual(slowCalc.difficultyConfig.NEW_CHAR_DIFFICULTY_GRACE);
       
-      expect(easyCalc.difficultyConfig.EXCELLENT_PERFORMANCE_THRESHOLD)
-        .toBeGreaterThan(hardCalc.difficultyConfig.EXCELLENT_PERFORMANCE_THRESHOLD);
+      expect(fastCalc.difficultyConfig.EXCELLENT_PERFORMANCE_THRESHOLD)
+        .toBeGreaterThan(slowCalc.difficultyConfig.EXCELLENT_PERFORMANCE_THRESHOLD);
     });
 
     it('should apply default preset if invalid preference given', () => {

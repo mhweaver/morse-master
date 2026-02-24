@@ -133,12 +133,55 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.stateManager.settings.lessonLevel = 10;
       trainer.stateManager.settings.manualChars = ['X', 'Y'];
       
+      // Set up session stats
+      trainer.stateManager.stats.sessionMetrics = {
+        challengesInSession: 5,
+        lastSessionDate: '2026-01-01',
+        weakCharsFocused: ['E', 'T'],
+        sessionStartAccuracy: { E: 0.5 }
+      };
+      trainer.sessionChallengesCount = 5;
+      trainer.lastSessionDateIso = '2026-01-01';
+      
       trainer.confirmReset();
       
       expect(trainer.stateManager.stats.history).toEqual([]);
       expect(trainer.stateManager.stats.accuracy).toEqual({});
       expect(trainer.stateManager.settings.lessonLevel).toBe(2);
       expect(trainer.stateManager.settings.manualChars).toEqual([]);
+      
+      // Verify session stats are cleared
+      expect(trainer.stateManager.stats.sessionMetrics).toEqual({
+        challengesInSession: 0,
+        lastSessionDate: null,
+        weakCharsFocused: [],
+        sessionStartAccuracy: {}
+      });
+      expect(trainer.sessionChallengesCount).toBe(0);
+      expect(trainer.lastSessionDateIso).toBeNull();
+    });
+
+    it('should clear session summary from UI when wiping progress', () => {
+      // Set up session stats that would be visible
+      trainer.stateManager.stats.sessionMetrics = {
+        challengesInSession: 10,
+        lastSessionDate: '2026-01-01',
+        weakCharsFocused: ['E', 'T'],
+        sessionStartAccuracy: { E: 0.5 }
+      };
+      trainer.sessionChallengesCount = 10;
+      
+      // Render to show session summary
+      trainer.renderSessionSummary();
+      const sessionCard = trainer.domCache.query('#session-summary-card');
+      expect(sessionCard?.classList.contains('hidden')).toBe(false);
+      
+      // Wipe progress
+      trainer.confirmReset();
+      
+      // Verify session summary is now hidden (because challengesInSession = 0)
+      const sessionCardAfter = trainer.domCache.query('#session-summary-card');
+      expect(sessionCardAfter?.classList.contains('hidden')).toBe(true);
     });
   });
 
@@ -192,6 +235,15 @@ describe('MorseTrainer - Core Functionality', () => {
       trainer.stateManager.settings.lessonLevel = 40;
       trainer.changeLevel(10);
       expect(trainer.stateManager.settings.lessonLevel).toBeLessThanOrEqual(40);
+    });
+
+    it('should update level progress display when changing levels', () => {
+      trainer.stateManager.settings.lessonLevel = 5;
+      vi.spyOn(trainer, 'renderLevelProgress');
+      
+      trainer.changeLevel(1);
+      
+      expect(trainer.renderLevelProgress).toHaveBeenCalled();
     });
 
     it('should toggle manual character on/off', () => {
@@ -638,20 +690,208 @@ describe('MorseTrainer - Core Functionality', () => {
   });
 
   describe('Modal Management', () => {
-    it('should open modal when toggleModal is called with true', () => {
-      trainer.toggleModal('settings', true);
-      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(false);
+    it('should open reset modal when toggleModal is called with true', () => {
+      trainer.toggleModal('reset', true);
+      expect(trainer.dom.modals.reset.classList.contains('hidden')).toBe(false);
     });
 
-    it('should close modal when toggleModal is called with false', () => {
-      trainer.toggleModal('settings', false);
-      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(true);
+    it('should close reset modal when toggleModal is called with false', () => {
+      trainer.toggleModal('reset', false);
+      expect(trainer.dom.modals.reset.classList.contains('hidden')).toBe(true);
     });
 
-    it('should save settings when closing settings modal', () => {
-      const saveSpy = vi.spyOn(trainer.stateManager, 'saveSettings');
-      trainer.toggleModal('settings', false);
-      expect(saveSpy).toHaveBeenCalled();
+    it('should switch to settings tab and display settings view', () => {
+      trainer.switchTab('settings');
+      expect(trainer.activeTab).toBe('settings');
+      expect(trainer.dom.views.settings.classList.contains('hidden')).toBe(false);
+    });
+  });
+
+  describe('Level Progress Tracker', () => {
+    it('should render progress tracker with initial state', () => {
+      trainer.renderLevelProgress();
+      
+      const progressLevel = container.querySelector('#progress-level');
+      const progressAccuracy = container.querySelector('#progress-accuracy');
+      const progressMessage = container.querySelector('#progress-message');
+      
+      expect(progressLevel).toBeTruthy();
+      expect(progressAccuracy).toBeTruthy();
+      expect(progressMessage).toBeTruthy();
+    });
+
+    it('should show "need more challenges" when history is insufficient', () => {
+      trainer.stateManager.stats.history = [];
+      trainer.renderLevelProgress();
+      
+      const progressAccuracy = container.querySelector('#progress-accuracy');
+      const progressMessage = container.querySelector('#progress-message');
+      
+      expect(progressAccuracy.textContent).toBe('--');
+      expect(progressMessage.textContent).toContain('15 more');
+      expect(progressMessage.textContent).toContain('unlock progress tracking');
+    });
+
+    it('should calculate and display recent accuracy', () => {
+      // Add 20 challenges. Recent window takes first 15.
+      // Want ~90% in first 15, so 14 correct out of first 15
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 20; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          // First 15: index 0 wrong, 1-14 correct = 14/15 = 93.3%
+          correct: i >= 1 && i < 15 ? true : i >= 15,
+          timestamp: Date.now() - i * 1000
+        });
+      }
+      
+      trainer.renderLevelProgress();
+      
+      const progressAccuracy = container.querySelector('#progress-accuracy');
+      expect(progressAccuracy.textContent).toContain('%');
+      const accuracy = parseFloat(progressAccuracy.textContent);
+      expect(accuracy).toBeGreaterThanOrEqual(85);
+      expect(accuracy).toBeLessThanOrEqual(100);
+    });
+
+    it('should show green bar and success message at 90%+ accuracy', () => {
+      // 14 correct out of first 15 = 93.3%
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 20; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          correct: i >= 1 && i < 15 ? true : i >= 15,
+          timestamp: Date.now()
+        });
+      }
+      
+      trainer.renderLevelProgress();
+      
+      const progressBarFill = container.querySelector('#progress-bar-fill');
+      const progressMessage = container.querySelector('#progress-message');
+      
+      expect(progressBarFill.style.width).toBe('100%');
+      // Hex color format
+      const bgColor = progressBarFill.style.backgroundColor;
+      expect(bgColor.includes('10b981') || bgColor.includes('16, 185, 129')).toBe(true);
+      expect(progressMessage.textContent).toContain('Excellent');
+    });
+
+    it('should show specific requirements when close to leveling up (80-90%)', () => {
+      // 13 correct out of first 15 = 86.7%
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 20; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          //  First 15: indices 0-1 wrong, 2-14 correct = 13/15 = 86.7%
+          correct: i >= 2 && i < 15 ? true : i >= 15,
+          timestamp: Date.now()
+        });
+      }
+      
+      trainer.renderLevelProgress();
+      
+      const progressMessage = container.querySelector('#progress-message');
+      expect(progressMessage.textContent).toContain('Almost there');
+      expect(progressMessage.textContent).toContain('more correct answer');
+      expect(progressMessage.textContent).toMatch(/\d+\.\d+% more accuracy/);
+    });
+
+    it('should show yellow bar for 70-80% accuracy range', () => {
+      // 11 correct out of first 15 = 73.3%
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 20; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          // First 15: indices 0-3 wrong, 4-14 correct = 11/15 = 73.3%
+          correct: i >= 4 && i < 15 ? true : i >= 15,
+          timestamp: Date.now()
+        });
+      }
+      
+      trainer.renderLevelProgress();
+      
+      const progressBarFill = container.querySelector('#progress-bar-fill');
+      const bgColor = progressBarFill.style.backgroundColor;
+      expect(bgColor.includes('eab308') || bgColor.includes('234, 179, 8')).toBe(true);
+    });
+
+    it('should show red bar and warning for <60% accuracy', () => {
+      // 7 correct out of first 15 = 46.7%
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 20; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          // First 15: indices 0-7 wrong, 8-14 correct = 7/15 = 46.7%
+          correct: i >= 8 && i < 15 ? true : i >= 15,
+          timestamp: Date.now()
+        });
+      }
+      
+      trainer.renderLevelProgress();
+      
+      const progressBarFill = container.querySelector('#progress-bar-fill');
+      const bgColor = progressBarFill.style.backgroundColor;
+      expect(bgColor.includes('ef4444') || bgColor.includes('239, 68, 68')).toBe(true);
+    });
+
+    it('should update progress after checking answer', () => {
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 15; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          correct: true,
+          timestamp: Date.now()
+        });
+      }
+      
+      trainer.currentChallenge = 'KM';
+      trainer.hasPlayedCurrent = true;
+      const userInput = container.querySelector('#user-input');
+      userInput.value = 'KM';
+      
+      trainer.checkAnswer();
+      
+      const progressAccuracy = container.querySelector('#progress-accuracy');
+      expect(progressAccuracy.textContent).not.toBe('--');
+    });
+
+    it('should respect auto-level disabled setting in messages', () => {
+      trainer.stateManager.settings.autoLevel = false;
+      // 14 correct out of first 15 = 93.3%
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 20; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          correct: i >= 1 && i < 15 ? true : i >= 15,
+          timestamp: Date.now()
+        });
+      }
+      
+      trainer.renderLevelProgress();
+      
+      const progressMessage = container.querySelector('#progress-message');
+      expect(progressMessage.textContent).toContain('Auto-level is disabled');
+      expect(progressMessage.textContent).toContain('manual override');
+    });
+
+    it('should show max level message when at maximum level', () => {
+      trainer.stateManager.settings.lessonLevel = 40; // Max level
+      // 14 correct out of first 15 = 93.3%
+      trainer.stateManager.stats.history = [];
+      for (let i = 0; i < 20; i++) {
+        trainer.stateManager.stats.history.push({
+          challenge: 'TEST',
+          correct: i >= 1 && i < 15 ? true : i >= 15,
+          timestamp: Date.now()
+        });
+      }
+      
+      trainer.renderLevelProgress();
+      
+      const progressMessage = container.querySelector('#progress-message');
+      expect(progressMessage.textContent).toContain('Maximum level reached');
+      expect(progressMessage.textContent).toContain('mastered all characters');
     });
   });
 
@@ -784,6 +1024,44 @@ describe('MorseTrainer - Core Functionality', () => {
         }
       });
 
+      it('should show "Previous Session" label when displaying cached data on load', () => {
+        // Simulate having previous session data in localStorage
+        trainer.stateManager.stats.sessionMetrics = {
+          challengesInSession: 5,
+          lastSessionDate: '2026-01-01',
+          weakCharsFocused: [],
+          sessionStartAccuracy: {}
+        };
+        trainer.sessionChallengesCount = 0; // No challenges in current session yet
+
+        trainer.renderSessionSummary();
+
+        const sessionTitle = trainer.domCache.query('#session-summary-title');
+        expect(sessionTitle).toBeDefined();
+        if (sessionTitle) {
+          expect(sessionTitle.textContent).toBe('📊 Previous Session');
+        }
+      });
+
+      it('should show "This Session" label after completing first challenge', () => {
+        // Simulate having completed a challenge in current session
+        trainer.stateManager.stats.sessionMetrics = {
+          challengesInSession: 1,
+          lastSessionDate: new Date().toISOString().split('T')[0],
+          weakCharsFocused: [],
+          sessionStartAccuracy: {}
+        };
+        trainer.sessionChallengesCount = 1; // One challenge in current session
+
+        trainer.renderSessionSummary();
+
+        const sessionTitle = trainer.domCache.query('#session-summary-title');
+        expect(sessionTitle).toBeDefined();
+        if (sessionTitle) {
+          expect(sessionTitle.textContent).toBe('📊 This Session');
+        }
+      });
+
       it('should calculate character improvements correctly', () => {
         trainer.stateManager.stats.sessionMetrics = {
           challengesInSession: 5,
@@ -810,17 +1088,17 @@ describe('MorseTrainer - Core Functionality', () => {
 
     describe('Difficulty Preset Descriptions (Phase 3.3)', () => {
       it('should return correct difficulty label', () => {
-        expect(trainer._getDifficultyLabel(1)).toBe('Very Easy');
-        expect(trainer._getDifficultyLabel(2)).toBe('Easy');
+        expect(trainer._getDifficultyLabel(1)).toBe('Very Slow');
+        expect(trainer._getDifficultyLabel(2)).toBe('Slow');
         expect(trainer._getDifficultyLabel(3)).toBe('Medium');
-        expect(trainer._getDifficultyLabel(4)).toBe('Hard');
-        expect(trainer._getDifficultyLabel(5)).toBe('Very Hard');
+        expect(trainer._getDifficultyLabel(4)).toBe('Fast');
+        expect(trainer._getDifficultyLabel(5)).toBe('Very Fast');
       });
 
       it('should return correct difficulty description', () => {
         const description = trainer._getDifficultyDescription(1);
-        expect(description).toContain('Gentle learning');
-        expect(description).toContain('beginners');
+        expect(description).toContain('Slow');
+        expect(description).toContain('thoroughly');
       });
 
       it('should default to Medium for invalid preset', () => {
@@ -828,11 +1106,11 @@ describe('MorseTrainer - Core Functionality', () => {
       });
 
       it('should update difficulty description when rendering settings', () => {
-        trainer.stateManager.settings.difficultyPreference = 4;
+        trainer.stateManager.settings.difficultyPreference = 5;
         trainer.renderSettings();
 
         const descElement = trainer.container.querySelector('#difficulty-description');
-        expect(descElement.textContent).toContain('Faster progression');
+        expect(descElement.textContent).toContain('Fast progression');
       });
     });
 

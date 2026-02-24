@@ -50,7 +50,7 @@ Tests complete user workflows and feature interactions:
 - ✅ AI operations workflow
 - ✅ Settings modal workflow
 - ✅ History tracking workflow
-- ✅ Skip word functionality
+- ✅ Skip functionality
 - ✅ Complete user journey (multi-drill session)
 - ✅ Error handling and edge cases
 

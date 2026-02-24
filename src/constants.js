@@ -20,7 +20,7 @@ export const DEFAULT_SETTINGS = {
   autoPlay: true,
   apiKey: '',
   manualChars: [],
-  difficultyPreference: 3,  // 1=Very Easy, 2=Easy, 3=Medium, 4=Hard, 5=Very Hard
+  difficultyPreference: 3,  // 1=Very Slow, 2=Slow, 3=Medium, 4=Fast, 5=Very Fast
   userCallsign: ''  // User's personal amateur radio callsign
 };
 
@@ -207,40 +207,40 @@ export const DIFFICULTY = {
 // --- Difficulty Presets (User-friendly difficulty slider) ---
 // Maps difficultyPreference (1-5) to DIFFICULTY configuration overrides
 export const DIFFICULTY_PRESETS = {
-  1: { // Very Easy - Gentle learning for absolute beginners
-    name: 'Very Easy',
-    description: 'Gentle learning curve for absolute beginners. Extended grace period for new characters.',
-    NEW_CHAR_DIFFICULTY_GRACE: 3,
-    EXCELLENT_PERFORMANCE_THRESHOLD: 0.95,
-    POOR_PERFORMANCE_THRESHOLD: 0.70
+  1: { // Very Slow progression
+    name: 'Very Slow',
+    description: 'Slow progression. Master each character thoroughly before moving on. Best for building strong fundamentals.',
+    NEW_CHAR_DIFFICULTY_GRACE: 1,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.75,
+    POOR_PERFORMANCE_THRESHOLD: 0.50
   },
-  2: { // Easy - Beginner-friendly with generous grace period
-    name: 'Easy',
-    description: 'Beginner-friendly pace with forgiving thresholds. Good for casual learners.',
-    NEW_CHAR_DIFFICULTY_GRACE: 2,
-    EXCELLENT_PERFORMANCE_THRESHOLD: 0.90,
-    POOR_PERFORMANCE_THRESHOLD: 0.65
-  },
-  3: { // Medium - Balanced challenge (default)
-    name: 'Medium',
-    description: 'Balanced challenge for steady progress. Recommended for most learners.',
-    NEW_CHAR_DIFFICULTY_GRACE: 2,
-    EXCELLENT_PERFORMANCE_THRESHOLD: 0.85,
-    POOR_PERFORMANCE_THRESHOLD: 0.60
-  },
-  4: { // Hard - More challenging progression
-    name: 'Hard',
-    description: 'Faster progression with higher standards. For dedicated practice.',
+  2: { // Slow progression
+    name: 'Slow',
+    description: 'Slower progression with higher accuracy requirements. More practice time per character.',
     NEW_CHAR_DIFFICULTY_GRACE: 1,
     EXCELLENT_PERFORMANCE_THRESHOLD: 0.80,
     POOR_PERFORMANCE_THRESHOLD: 0.55
   },
-  5: { // Very Hard - Contest prep, rapid advancement
-    name: 'Very Hard',
-    description: 'Rapid advancement for contest prep. Demands high accuracy from the start.',
-    NEW_CHAR_DIFFICULTY_GRACE: 1,
-    EXCELLENT_PERFORMANCE_THRESHOLD: 0.75,
-    POOR_PERFORMANCE_THRESHOLD: 0.50
+  3: { // Medium progression (default)
+    name: 'Medium',
+    description: 'Balanced progression. Recommended for most learners.',
+    NEW_CHAR_DIFFICULTY_GRACE: 2,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.85,
+    POOR_PERFORMANCE_THRESHOLD: 0.60
+  },
+  4: { // Fast progression
+    name: 'Fast',
+    description: 'Moderate pace with relaxed thresholds. Good for learning without pressure.',
+    NEW_CHAR_DIFFICULTY_GRACE: 2,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.90,
+    POOR_PERFORMANCE_THRESHOLD: 0.65
+  },
+  5: { // Very Fast progression
+    name: 'Very Fast',
+    description: 'Fast progression. Unlock new characters quickly. Good for staying motivated.',
+    NEW_CHAR_DIFFICULTY_GRACE: 3,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.95,
+    POOR_PERFORMANCE_THRESHOLD: 0.70
   }
 };
 

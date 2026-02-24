@@ -31,17 +31,19 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
       expect(logo.textContent).toBe('MorseMaster');
       
       const navButtons = container.querySelectorAll('.mt-nav-btn');
-      expect(navButtons.length).toBe(3);
+      expect(navButtons.length).toBe(4); // Train, Stats, Guide, Settings
     });
 
-    it('should render three main views', () => {
+    it('should render four main views including settings tab', () => {
       const trainView = container.querySelector('#view-train');
       const statsView = container.querySelector('#view-stats');
       const guideView = container.querySelector('#view-guide');
+      const settingsView = container.querySelector('#view-settings');
       
       expect(trainView).toBeTruthy();
       expect(statsView).toBeTruthy();
       expect(guideView).toBeTruthy();
+      expect(settingsView).toBeTruthy();
     });
 
     it('should render play button and user input', () => {
@@ -59,18 +61,15 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
       expect(submitBtn.textContent).toBe('Check Answer');
     });
 
-    it('should render all three modals', () => {
-      const settingsModal = container.querySelector('#modal-settings');
+    it('should render utility modals (reset and aiHelp)', () => {
       const resetModal = container.querySelector('#modal-reset');
       const aiHelpModal = container.querySelector('#modal-ai-help');
       
-      expect(settingsModal).toBeTruthy();
       expect(resetModal).toBeTruthy();
       expect(aiHelpModal).toBeTruthy();
     });
 
-    it('should hide all modals initially', () => {
-      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(true);
+    it('should hide utility modals initially', () => {
       expect(trainer.dom.modals.reset.classList.contains('hidden')).toBe(true);
       expect(trainer.dom.modals.aiHelp.classList.contains('hidden')).toBe(true);
     });
@@ -83,6 +82,18 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
     it('should render AI operation buttons', () => {
       const buttons = container.querySelectorAll('[data-action^="ai:"]');
       expect(buttons.length).toBeGreaterThanOrEqual(2); // broadcast and coach
+    });
+
+    it('should render footer with GitHub link', () => {
+      const footer = container.querySelector('.mt-footer');
+      expect(footer).toBeTruthy();
+      
+      const link = footer.querySelector('a');
+      expect(link).toBeTruthy();
+      expect(link.href).toBe('https://github.com/mhweaver/morse-master/');
+      expect(link.target).toBe('_blank');
+      expect(link.rel).toBe('noopener noreferrer');
+      expect(link.textContent.trim()).toBe('View Project on GitHub');
     });
   });
 
@@ -136,20 +147,23 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
   });
 
   describe('Modal Interactions', () => {
-    it('should open settings modal when settings button clicked', () => {
-      const settingsBtn = container.querySelector('[data-action="modal:settings:open"]');
+    it('should switch to settings tab when settings nav button clicked', () => {
+      const settingsBtn = container.querySelector('[data-action="tab:settings"]');
       fireEvent.click(settingsBtn);
       
-      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(false);
+      expect(trainer.activeTab).toBe('settings');
+      const settingsView = container.querySelector('#view-settings');
+      expect(settingsView.classList.contains('hidden')).toBe(false);
     });
 
-    it('should close settings modal when close button clicked', () => {
-      trainer.toggleModal('settings', true);
+    it('should show settings view when active', () => {
+      trainer.switchTab('settings');
       
-      const closeBtn = container.querySelector('[data-action="modal:settings:close"]');
-      fireEvent.click(closeBtn);
+      const settingsView = container.querySelector('#view-settings');
+      expect(settingsView.classList.contains('hidden')).toBe(false);
       
-      expect(trainer.dom.modals.settings.classList.contains('hidden')).toBe(true);
+      const trainView = container.querySelector('#view-train');
+      expect(trainView.classList.contains('hidden')).toBe(true);
     });
 
     it('should open reset confirmation modal', () => {
@@ -476,7 +490,7 @@ describe('MorseTrainer - UI Rendering and Behavior', () => {
       expect(checkSpy).toHaveBeenCalled();
     });
 
-    it('should skip word on skip button click', () => {
+    it('should skip on skip button click', () => {
       const generateSpy = vi.spyOn(trainer, 'generateNextChallenge');
       const skipBtn = container.querySelector('[data-action="skipWord"]');
       fireEvent.click(skipBtn);

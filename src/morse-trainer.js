@@ -186,7 +186,16 @@ export class MorseTrainer {
                             </div>
                             <div class="mt-play-controls">
                                 <button id="play-btn" class="mt-play-btn" data-action="togglePlay">${ICONS.play}</button>
-                                <p id="play-status-text" class="mt-hint">Click to Play (Auto-Focus)</p>
+                                <p id="play-status-text" class="mt-hint">Click to Play</p>
+                                <div id="difficulty-display" class="mt-difficulty-display hidden">
+                                    <div class="mt-difficulty-meter">
+                                        <div id="difficulty-bar" class="mt-difficulty-bar" style="width: 50%;"></div>
+                                    </div>
+                                    <div class="mt-difficulty-info">
+                                        <span id="difficulty-number" class="mt-difficulty-number">5/10</span>
+                                        <span id="difficulty-label" class="mt-difficulty-label">Medium</span>
+                                    </div>
+                                </div>
                             </div>
                             <div class="mt-input-wrapper">
                                 <input type="text" id="user-input" class="mt-input-large" placeholder="Type answer..." autocomplete="off">
@@ -194,7 +203,7 @@ export class MorseTrainer {
                             </div>
                             <button id="submit-btn" class="mt-btn-primary" data-action="checkAnswer">Check Answer</button>
                             <div class="mt-sub-controls">
-                                <button class="mt-btn-text" data-action="skipWord">${ICONS.skip} Skip Word</button>
+                                <button class="mt-btn-text" data-action="skipWord">${ICONS.skip} Skip</button>
                                 <label class="mt-toggle">
                                     <input type="checkbox" id="autoplay-toggle" class="mt-toggle-input" data-action="toggleAutoPlay">
                                     <span class="mt-toggle-slider"></span>
@@ -224,6 +233,31 @@ export class MorseTrainer {
                                         <p>Target your weak chars</p>
                                     </div>
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Level Progress Tracker -->
+                        <div id="level-progress-card" class="mt-card">
+                            <div class="mt-section-header">
+                                <h3>Level Progress</h3>
+                            </div>
+                            <div class="mt-progress-tracker">
+                                <div class="mt-progress-stats">
+                                    <div class="mt-progress-stat">
+                                        <span class="mt-label">Current Level</span>
+                                        <span id="progress-level" class="mt-value">2</span>
+                                    </div>
+                                    <div class="mt-progress-stat">
+                                        <span class="mt-label">Recent Accuracy</span>
+                                        <span id="progress-accuracy" class="mt-value">--</span>
+                                    </div>
+                                </div>
+                                <div class="mt-progress-bar-container">
+                                    <div class="mt-progress-bar-bg">
+                                        <div id="progress-bar-fill" class="mt-progress-bar-fill" style="width: 0%;"></div>
+                                    </div>
+                                    <p id="progress-message" class="mt-progress-message">Complete 15 challenges to evaluate progress</p>
+                                </div>
                             </div>
                         </div>
 
@@ -261,7 +295,7 @@ export class MorseTrainer {
 
                         <!-- PHASE 4: SESSION SUMMARY -->
                         <div id="session-summary-card" class="mt-card hidden">
-                            <h3>📊 This Session</h3>
+                            <h3 id="session-summary-title">📊 This Session</h3>
                             <div class="mt-session-summary">
                                 <div class="mt-session-stat">
                                     <span class="mt-label">Challenges:</span>
@@ -304,6 +338,54 @@ export class MorseTrainer {
                                 </div>
                             </div>
                         </div>
+                        <div class="mt-card">
+                            <h3>Understanding Difficulty</h3>
+                            <p><strong>Each challenge you see gets a difficulty rating from 1-10.</strong> This rating is based on the challenge content itself, not your settings.</p>
+                            
+                            <h4 style="margin-top: 1rem;">What Makes a Challenge Harder or Easier?</h4>
+                            <ul class="mt-guide-list">
+                                <li><strong>Length:</strong> Longer challenges are harder than short ones</li>
+                                <li><strong>Your Weak Characters:</strong> If the challenge includes characters you struggle with, it's rated harder</li>
+                                <li><strong>New Characters:</strong> When you first unlock a new character, challenges using it get easier temporarily to help you learn (grace period)</li>
+                                <li><strong>Pattern Similarity:</strong> Some characters sound similar in morse code (E, T, A). Challenges mixing these are harder</li>
+                            </ul>
+
+                            <h4 style="margin-top: 1rem;">Difficulty Scale</h4>
+                            <div class="mt-difficulty-scale-guide">
+                                <div class="mt-scale-item">
+                                    <div class="mt-scale-bar" style="background-color: #10b981;"></div>
+                                    <div><strong>1-2: Very Easy</strong> <span class="mt-text-muted">Short, familiar characters</span></div>
+                                </div>
+                                <div class="mt-scale-item">
+                                    <div class="mt-scale-bar" style="background-color: #84cc16;"></div>
+                                    <div><strong>3-4: Easy</strong> <span class="mt-text-muted">Mostly strong characters</span></div>
+                                </div>
+                                <div class="mt-scale-item">
+                                    <div class="mt-scale-bar" style="background-color: #eab308;"></div>
+                                    <div><strong>5-6: Medium</strong> <span class="mt-text-muted">Mixed difficulty</span></div>
+                                </div>
+                                <div class="mt-scale-item">
+                                    <div class="mt-scale-bar" style="background-color: #f97316;"></div>
+                                    <div><strong>7-8: Hard</strong> <span class="mt-text-muted">Multiple weak characters</span></div>
+                                </div>
+                                <div class="mt-scale-item">
+                                    <div class="mt-scale-bar" style="background-color: #ef4444;"></div>
+                                    <div><strong>9-10: Very Hard</strong> <span class="mt-text-muted">Long, complex combinations</span></div>
+                                </div>
+                            </div>
+
+                            <h4 style="margin-top: 1rem;">Challenge Pool: Which Characters Do You See?</h4>
+                            <p>The characters that appear in your challenges are determined by your current <strong>Koch level</strong> (shown at the bottom of the train view). You start with K and M, and unlock new characters as you progress. New characters are always added incrementally following the Koch method—you won't suddenly see all of them at once.</p>
+
+                            <h4 style="margin-top: 1rem;">Learning Speed: Controlling Progression</h4>
+                            <p>The <strong>Learning Speed</strong> slider in Settings controls how quickly you unlock new characters. It doesn't change which challenges you see—just how long you practice current characters before introducing new ones:</p>
+                            <ul class="mt-guide-list">
+                                <li><strong>Very Slow (Left):</strong> Master each character thoroughly before unlocking new ones</li>
+                                <li><strong>Slow to Fast (Middle):</strong> Balanced progression speeds</li>
+                                <li><strong>Very Fast (Right):</strong> Unlock new characters quickly</li>
+                            </ul>
+                            <p style="margin-top: 0.75rem;"><em>Tip: If challenges feel too hard, slow down your learning speed to progress more gradually. This gives you more time to practice and build confidence with current characters.</em></p>
+                        </div>
                         <div class="mt-card mt-card-dark">
                             <h3>Course Roadmap</h3>
                             <div id="roadmap-list" class="mt-list-spaced"></div>
@@ -319,21 +401,24 @@ export class MorseTrainer {
                         <div class="mt-card">
                             <h2>Settings</h2>
                             <div class="mt-form-group">
-                                <label>Challenge Difficulty <span id="display-difficulty">${this._getDifficultyLabel(DEFAULT_SETTINGS.difficultyPreference)}</span></label>
+                                <label>Learning Speed <span id="display-difficulty">${this._getDifficultyLabel(DEFAULT_SETTINGS.difficultyPreference)}</span></label>
                                 <input type="range" id="input-difficulty" min="${SETTINGS_RANGES.difficultyPreference.min}" max="${SETTINGS_RANGES.difficultyPreference.max}" data-action="setting:difficulty">
                                 <p class="mt-hint" id="difficulty-description">${this._getDifficultyDescription(DEFAULT_SETTINGS.difficultyPreference)}</p>
                             </div>
                             <div class="mt-form-group">
                                 <label>Char Speed <span id="display-wpm">${DEFAULT_SETTINGS.wpm} WPM</span></label>
                                 <input type="range" id="input-wpm" min="${SETTINGS_RANGES.wpm.min}" max="${SETTINGS_RANGES.wpm.max}" data-action="setting:wpm">
+                                <p class="mt-hint">Speed at which individual characters are transmitted. Higher = faster characters. Typically 15-25 WPM for learning.</p>
                             </div>
                             <div class="mt-form-group">
                                 <label>Effective Speed <span id="display-farnsworth">${DEFAULT_SETTINGS.farnsworthWpm} WPM</span></label>
                                 <input type="range" id="input-farnsworth" min="${SETTINGS_RANGES.farnsworthWpm.min}" max="${SETTINGS_RANGES.farnsworthWpm.max}" data-action="setting:farnsworth">
+                                <p class="mt-hint">Overall learning pace (Farnsworth timing). Characters are sent fast but spaced out. Lower = more thinking time between characters.</p>
                             </div>
                             <div class="mt-form-group">
                                 <label>Tone Frequency <span id="display-frequency">${DEFAULT_SETTINGS.frequency} Hz</span></label>
                                 <input type="range" id="input-frequency" min="${SETTINGS_RANGES.frequency.min}" max="${SETTINGS_RANGES.frequency.max}" step="${SETTINGS_RANGES.frequency.step}" data-action="setting:frequency">
+                                <p class="mt-hint">Pitch of the morse code tone. Choose what's most comfortable for your ears. Standard is around 600-700 Hz.</p>
                             </div>
                             <div class="mt-form-group border-top">
                                 <label>Your Callsign (Optional)</label>
@@ -421,6 +506,15 @@ export class MorseTrainer {
                         </div>
                     </div>
                 </div>
+
+                <!-- Footer -->
+                <footer class="mt-footer">
+                    <p>
+                        <a href="https://github.com/mhweaver/morse-master/" target="_blank" rel="noopener noreferrer">
+                            View Project on GitHub
+                        </a>
+                    </p>
+                </footer>
             </div>
         `;
     }
@@ -785,6 +879,7 @@ export class MorseTrainer {
         );
         
         this.renderSubmitButton();
+        this.renderDifficultyDisplay(); // Show difficulty for this challenge
         this.updateWeakCharacterFeedback(); // Phase 3: Show weak char feedback
 
         if (playNow) setTimeout(() => this.playMorse(this.currentChallenge), 100);
@@ -885,7 +980,10 @@ export class MorseTrainer {
             const displayedUserAnswer = userAnswer || UI_FEEDBACK.EMPTY_INPUT;
             const feedbackText = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}\n💡 Difficulty: ${Math.round(this.lastChallengeDifficulty || 5)}/10`;
             feedbackElement.textContent = feedbackText;
+            this.checkAutoLevel();
         }
+
+        this.renderLevelProgress();
     }
 
     /**
@@ -968,6 +1066,7 @@ export class MorseTrainer {
             this.stateManager.settings.lessonLevel = newLevel;
             this.stateManager.saveSettings();
             this.renderKochGrid();
+            this.renderLevelProgress();
             
             // Play celebratory jingle on automatic level up
             if (isAutoAdvance && delta > 0) {
@@ -1104,7 +1203,10 @@ export class MorseTrainer {
         if (this.dom.tabs[id]) this.dom.tabs[id].classList.add(CSS_CLASSES.ACTIVE);
         
         Object.values(this.dom.views).forEach(v => v.classList.add(CSS_CLASSES.HIDDEN));
-        if (id === 'train') this.dom.views.train.classList.remove(CSS_CLASSES.HIDDEN);
+        if (id === 'train') {
+            this.dom.views.train.classList.remove(CSS_CLASSES.HIDDEN);
+            this.renderLevelProgress();
+        }
         if (id === 'stats') { this.dom.views.stats.classList.remove(CSS_CLASSES.HIDDEN); this.renderStats(); }
         if (id === 'guide') this.dom.views.guide.classList.remove(CSS_CLASSES.HIDDEN);
         if (id === 'settings') this.dom.views.settings.classList.remove(CSS_CLASSES.HIDDEN);
@@ -1160,6 +1262,10 @@ export class MorseTrainer {
         this.stateManager.saveStats();
         this.stateManager.saveSettings();
         
+        // Reset session tracking
+        this.sessionChallengesCount = 0;
+        this.lastSessionDateIso = null;
+        
         // Recreate AccuracyTracker with fresh stats
         this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
         this.contentGenerator.updateAccuracyData(this.accuracyTracker);
@@ -1211,7 +1317,7 @@ export class MorseTrainer {
         } else {
             btn.className = `mt-play-btn ${CSS_CLASSES.PLAY}`;
             btn.innerHTML = ICONS.play;
-            txt.textContent = "Click to Play (Auto-Focus)";
+            txt.textContent = "Click to Play";
         }
     }
 
@@ -1223,6 +1329,161 @@ export class MorseTrainer {
         const btn = this.dom.displays.submitBtn;
         const disabled = !this.currentChallenge || this.audioSynthesizer.isPlaying || !this.hasPlayedCurrent;
         btn.disabled = disabled;
+    }
+
+    /**
+     * Convert difficulty number (1-10) to a label string
+     * @param {number} difficulty - Difficulty value 1-10
+     * @returns {string} Label like "Very Easy", "Medium", "Hard"
+     * @private
+     */
+    _getDifficultyLabelForChallenge(difficulty) {
+        if (difficulty <= 2) return 'Very Easy';
+        if (difficulty <= 4) return 'Easy';
+        if (difficulty <= 6) return 'Medium';
+        if (difficulty <= 8) return 'Hard';
+        return 'Very Hard';
+    }
+
+    /**
+     * Convert difficulty number (1-10) to a color for visual display
+     * @param {number} difficulty - Difficulty value 1-10
+     * @returns {string} CSS color value
+     * @private
+     */
+    _getDifficultyColor(difficulty) {
+        if (difficulty <= 2) return '#10b981'; // Green
+        if (difficulty <= 4) return '#84cc16'; // Light green/lime
+        if (difficulty <= 6) return '#eab308'; // Yellow
+        if (difficulty <= 8) return '#f97316'; // Orange
+        return '#ef4444'; // Red
+    }
+
+    /**
+     * Render level progress tracker showing recent accuracy and progress to next level
+     * @private
+     */
+    renderLevelProgress() {
+        const progressLevel = this.domCache.query('#progress-level');
+        const progressAccuracy = this.domCache.query('#progress-accuracy');
+        const progressBarFill = this.domCache.query('#progress-bar-fill');
+        const progressMessage = this.domCache.query('#progress-message');
+        
+        if (!progressLevel || !progressAccuracy || !progressBarFill || !progressMessage) return;
+        
+        const currentLevel = this.stateManager.settings.lessonLevel;
+        const recentHistory = this.stateManager.stats.history;
+        const autoLevelEnabled = this.stateManager.settings.autoLevel;
+        
+        // Update current level
+        progressLevel.textContent = currentLevel;
+        
+        // Check if we have enough history
+        if (recentHistory.length < AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD) {
+            const needed = AUTO_LEVEL_CONFIG.ACCURACY_THRESHOLD - recentHistory.length;
+            progressAccuracy.textContent = '--';
+            progressBarFill.style.width = '0%';
+            progressBarFill.style.backgroundColor = '#6b7280'; // Gray
+            progressMessage.textContent = `Complete ${needed} more challenge${needed > 1 ? 's' : ''} to unlock progress tracking`;
+            progressMessage.className = 'mt-progress-message';
+            return;
+        }
+        
+        // Calculate recent accuracy
+        const recentDrills = recentHistory.slice(0, AUTO_LEVEL_CONFIG.HISTORY_WINDOW + 10);
+        const correctCount = recentDrills.filter(entry => entry.correct).length;
+        const accuracyPercentage = (correctCount / recentDrills.length) * 100;
+        
+        progressAccuracy.textContent = `${accuracyPercentage.toFixed(1)}%`;
+        
+        // Update progress bar (0-100% mapped to accuracy 60-90%)
+        let barPercentage = 0;
+        let barColor = '#ef4444'; // Red (struggling)
+        let message = '';
+        
+        if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY) {
+            // Ready to level up (or would level up if auto-level enabled)
+            barPercentage = 100;
+            barColor = '#10b981'; // Green
+            if (autoLevelEnabled) {
+                if (currentLevel >= KOCH_SEQUENCE.length) {
+                    message = '🎉 Maximum level reached! You\'ve mastered all characters!';
+                } else {
+                    message = `🎯 Excellent! Maintaining ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}%+ accuracy — you\'ll advance to Level ${currentLevel + 1} on your next correct answer!`;
+                }
+            } else {
+                message = `✓ Strong performance (${accuracyPercentage.toFixed(1)}% ≥ ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}%)! Auto-level is disabled — use manual override to advance.`;
+            }
+        } else if (accuracyPercentage >= 80) {
+            // Close to leveling up
+            barPercentage = ((accuracyPercentage - 80) / (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - 80)) * 100;
+            barColor = '#84cc16'; // Light green
+            const pointsNeeded = (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - accuracyPercentage).toFixed(1);
+            // Calculate how many more correct answers needed
+            const totalRecent = recentDrills.length;
+            const currentCorrect = correctCount;
+            const targetCorrect = Math.ceil((AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY / 100) * totalRecent);
+            const needCorrect = Math.max(0, targetCorrect - currentCorrect);
+            message = `📈 Almost there! Need ${pointsNeeded}% more accuracy (≈${needCorrect} more correct answer${needCorrect !== 1 ? 's' : ''} in recent ${totalRecent}) to reach ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% and level up.`;
+        } else if (accuracyPercentage >= 70) {
+            // Making progress
+            barPercentage = ((accuracyPercentage - 70) / 10) * 50; // 0-50% on bar
+            barColor = '#eab308'; // Yellow
+            const pointsNeeded = (AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY - accuracyPercentage).toFixed(1);
+            message = `📚 Keep practicing! Need ${pointsNeeded}% more accuracy to reach the ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% threshold for leveling up.`;
+        } else if (accuracyPercentage >= AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY) {
+            // Maintaining
+            barPercentage = ((accuracyPercentage - 60) / 10) * 30; // 0-30% on bar
+            barColor = '#f97316'; // Orange
+            message = `⚡ Focus on accuracy. Currently at ${accuracyPercentage.toFixed(1)}% — aim for ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% to level up. Take your time with each challenge!`;
+        } else {
+            // Struggling - might level down
+            barPercentage = (accuracyPercentage / AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY) * 20; // 0-20% on bar
+            barColor = '#ef4444'; // Red
+            if (autoLevelEnabled && currentLevel > LEVEL_LIMITS.MIN) {
+                const pointsToStable = (AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY - accuracyPercentage).toFixed(1);
+                message = `⚠️ Below ${AUTO_LEVEL_CONFIG.LEVEL_DOWN_ACCURACY}% accuracy threshold. Need ${pointsToStable}% improvement to avoid dropping to Level ${currentLevel - 1}.`;
+            } else {
+                message = `💪 Take your time and focus (currently ${accuracyPercentage.toFixed(1)}%). Every challenge helps you improve! Aim for ${AUTO_LEVEL_CONFIG.LEVEL_UP_ACCURACY}% to advance.`;
+            }
+        }
+        
+        progressBarFill.style.width = `${barPercentage}%`;
+        progressBarFill.style.backgroundColor = barColor;
+        progressMessage.textContent = message;
+        progressMessage.className = 'mt-progress-message';
+    }
+
+    /**
+     * Render the difficulty display for the current challenge
+     * Shows a color bar, numeric value, and text label
+     * @private
+     */
+    renderDifficultyDisplay() {
+        const display = this.domCache.query('#difficulty-display');
+        const bar = this.domCache.query('#difficulty-bar');
+        const number = this.domCache.query('#difficulty-number');
+        const label = this.domCache.query('#difficulty-label');
+        
+        if (!display || !this.currentChallenge) {
+            display?.classList.add('hidden');
+            return;
+        }
+        
+        // Show the display
+        display.classList.remove('hidden');
+        
+        // Update bar width (difficulty is 1-10)
+        const percentage = (this.lastChallengeDifficulty / 10) * 100;
+        if (bar) bar.style.width = percentage + '%';
+        
+        // Update color
+        const color = this._getDifficultyColor(this.lastChallengeDifficulty);
+        if (bar) bar.style.backgroundColor = color;
+        
+        // Update number and label
+        if (number) number.textContent = `${Math.round(this.lastChallengeDifficulty)}/10`;
+        if (label) label.textContent = this._getDifficultyLabelForChallenge(this.lastChallengeDifficulty);
     }
 
     /**
@@ -1372,6 +1633,7 @@ export class MorseTrainer {
      */
     renderSessionSummary() {
         const sessionCard = this.domCache.query('#session-summary-card');
+        const sessionTitle = this.domCache.query('#session-summary-title');
         const sessionChallenges = this.domCache.query('#session-challenges');
         const improvementsList = this.domCache.query('#session-improvements');
         const weakCharsDiv = this.domCache.query('#session-weak-chars');
@@ -1393,6 +1655,12 @@ export class MorseTrainer {
         }
 
         sessionCard.classList.remove('hidden');
+        
+        // Update label: "Previous Session" if showing cached data, "This Session" if showing current session
+        if (sessionTitle) {
+            sessionTitle.textContent = this.sessionChallengesCount === 0 ? '📊 Previous Session' : '📊 This Session';
+        }
+        
         if (sessionChallenges) sessionChallenges.textContent = challengesCount;
 
         // Show weak chars focused
@@ -1581,13 +1849,13 @@ export class MorseTrainer {
     }
 
     /**
-     * Get the difficulty preset description for display
+     * Get the learning speed preset description for display
      * @param {number} preference - Difficulty preference (1-5)
      * @returns {string} Description of the preset
      * @private
      */
     _getDifficultyDescription(preference) {
         const preset = DIFFICULTY_PRESETS[preference];
-        return preset ? preset.description : 'Balanced challenge for steady progress. Recommended for most learners.';
+        return preset ? preset.description : 'Balanced progression. Recommended for most learners.';
     }
 }

@@ -291,11 +291,11 @@ describe('Difficulty-Based Challenge Generation', () => {
     });
 
     it('should update difficulty preference', () => {
-      generator.updateDifficultyPreference(5); // Very Hard
+      generator.updateDifficultyPreference(1); // Very Slow
       
       expect(generator.difficultyCalculator.difficultyConfig).toBeDefined();
-      // Config should reflect Very Hard preset
-      expect(generator.difficultyCalculator.difficultyConfig.name).toBe('Very Hard');
+      // Config should reflect Very Slow preset
+      expect(generator.difficultyCalculator.difficultyConfig.name).toBe('Very Slow');
     });
 
     it('should use difficulty calculator for challenge generation', () => {
