@@ -110,7 +110,8 @@ export class MorseTrainer {
             views: {
                 train: this.container.querySelector('#view-train'),
                 stats: this.container.querySelector('#view-stats'),
-                guide: this.container.querySelector('#view-guide')
+                guide: this.container.querySelector('#view-guide'),
+                settings: this.container.querySelector('#view-settings')
             },
             inputs: {
                 user: this.container.querySelector('#user-input'),
@@ -140,7 +141,6 @@ export class MorseTrainer {
                 weakCharList: this.container.querySelector('#weak-char-list')
             },
             modals: {
-                settings: this.container.querySelector('#modal-settings'),
                 reset: this.container.querySelector('#modal-reset'),
                 characterDetail: this.container.querySelector('#modal-character-detail'),
                 aiHelp: this.container.querySelector('#modal-ai-help')
@@ -148,7 +148,8 @@ export class MorseTrainer {
             tabs: {
                 train: this.container.querySelector('#tab-btn-train'),
                 stats: this.container.querySelector('#tab-btn-stats'),
-                guide: this.container.querySelector('#tab-btn-guide')
+                guide: this.container.querySelector('#tab-btn-guide'),
+                settings: this.container.querySelector('#tab-btn-settings')
             }
         };
 
@@ -168,8 +169,8 @@ export class MorseTrainer {
                             <button id="tab-btn-train" class="mt-nav-btn" data-action="tab:train">Train</button>
                             <button id="tab-btn-stats" class="mt-nav-btn" data-action="tab:stats">Stats</button>
                             <button id="tab-btn-guide" class="mt-nav-btn" data-action="tab:guide">Guide</button>
+                            <button id="tab-btn-settings" class="mt-nav-btn" data-action="tab:settings">Settings</button>
                         </nav>
-                        <button class="mt-icon-btn" data-action="modal:settings:open">${ICONS.settings}</button>
                     </div>
                 </header>
 
@@ -312,16 +313,11 @@ export class MorseTrainer {
                             <div id="abbr-grid" class="mt-grid-3"></div>
                         </div>
                     </div>
-                </main>
 
-                <!-- Settings Modal -->
-                <div id="modal-settings" class="mt-modal hidden">
-                    <div class="mt-modal-content">
-                        <div class="mt-modal-header">
+                    <!-- SETTINGS VIEW -->
+                    <div id="view-settings" class="mt-view hidden">
+                        <div class="mt-card">
                             <h2>Settings</h2>
-                            <button class="mt-close-btn" data-action="modal:settings:close">&times;</button>
-                        </div>
-                        <div class="mt-modal-body">
                             <div class="mt-form-group">
                                 <label>Challenge Difficulty <span id="display-difficulty">${this._getDifficultyLabel(DEFAULT_SETTINGS.difficultyPreference)}</span></label>
                                 <input type="range" id="input-difficulty" min="${SETTINGS_RANGES.difficultyPreference.min}" max="${SETTINGS_RANGES.difficultyPreference.max}" data-action="setting:difficulty">
@@ -351,11 +347,8 @@ export class MorseTrainer {
                                 <div id="ai-status-badge" class="mt-badge-large">Checking...</div>
                             </div>
                         </div>
-                        <div class="mt-modal-footer">
-                            <button class="mt-btn-primary" data-action="modal:settings:close">Apply & Close</button>
-                        </div>
                     </div>
-                </div>
+                </main>
 
                 <!-- Character Detail Modal -->
                 <div id="modal-character-detail" class="mt-modal hidden">
@@ -1098,10 +1091,6 @@ export class MorseTrainer {
     toggleModal(name, show) {
         const modal = this.dom.modals[name];
         if (modal) modal.classList.toggle(CSS_CLASSES.HIDDEN, !show);
-        if (name === MODAL_IDENTIFIERS.SETTINGS && !show) {
-            this.stateManager.saveSettings();
-            this.renderKochGrid();
-        }
     }
 
     /**
@@ -1118,6 +1107,7 @@ export class MorseTrainer {
         if (id === 'train') this.dom.views.train.classList.remove(CSS_CLASSES.HIDDEN);
         if (id === 'stats') { this.dom.views.stats.classList.remove(CSS_CLASSES.HIDDEN); this.renderStats(); }
         if (id === 'guide') this.dom.views.guide.classList.remove(CSS_CLASSES.HIDDEN);
+        if (id === 'settings') this.dom.views.settings.classList.remove(CSS_CLASSES.HIDDEN);
         
         if (id === 'train' && !this.currentChallenge) this.generateNextChallenge(false);
     }
@@ -1196,8 +1186,8 @@ export class MorseTrainer {
         this.dom.inputs.wpm.value = s.wpm;
         this.dom.inputs.farnsworth.value = s.farnsworthWpm;
         this.dom.inputs.frequency.value = s.frequency;
-        this.dom.inputs.apiKey.value = s.apiKey;
-        this.dom.inputs.userCallsign.value = s.userCallsign;
+        this.dom.inputs.apiKey.value = s.apiKey || '';
+        this.dom.inputs.userCallsign.value = s.userCallsign || '';
 
         const badge = this.container.querySelector('#ai-status-badge');
         if (s.apiKey) { badge.className = 'mt-badge-large active-cloud'; badge.textContent = "Active: Gemini Cloud"; }
