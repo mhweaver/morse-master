@@ -7,9 +7,11 @@ import {
   CONTENT_GENERATION,
   KOCH_SEQUENCE,
   AI_PROMPTS,
-  MORSE_LIB
+  MORSE_LIB,
+  DIFFICULTY
 } from './constants.js';
 import { AccuracyTracker } from './accuracy-tracker.js';
+import { DifficultyCalculator } from './difficulty-calculator.js';
 
 // --- Training Content ---
 export const COMMON_ABBR = [
@@ -217,6 +219,32 @@ export const FREQUENCIES = [
   "TWENTY EIGHT ZERO ZERO", "TWENTY NINE HUNDRED", "TWENTY NINE FIVE HUNDRED"
 ];
 
+export const CALLSIGNS = [
+  // US callsigns
+  "K1ABC", "W1AW", "N1XYZ", "K2MGA", "W2XYZ", "N2ABC", "K3LR", "W3LPL", "N3QE",
+  "K4BAI", "W4ZV", "N4PN", "K5ZD", "W5WMU", "N5RZ", "K6LL", "W6YX", "N6RO",
+  "K7RL", "W7RM", "N7DD", "K8IA", "W8JI", "N8BJQ", "K9CT", "W9RE", "N9RV",
+  "K0RF", "W0AIH", "N0AX", "AA1K", "AB2E", "AC3RF", "AD4J", "AE5E", "AF6O",
+  "AG7T", "AH8DX", "AI9K", "AJ0M", "KA1DJZ", "KB2FMH", "KC3PI", "KD4QMY",
+  "KE5PF", "KF6GX", "KG7H", "KH6BB", "KI9A", "KJ0I", "WA4DSL", "WB5BHS",
+  "WC6H", "WD8E", "WE9V", "WF0E", "NA6O", "NB7Q", "NC8N", "ND9G", "NE1B",
+  // Canadian callsigns
+  "VE3AT", "VA3XFC", "VE7CC", "VA7ST", "VE9AA", "VE2IM", "VA2EW",
+  // UK callsigns
+  "G3WZT", "G4AMT", "M0MCX", "M5ZAP", "G0MTN", "2E0XXX", "2E1ABC",
+  // European callsigns
+  "DL1ABC", "DJ9ZB", "F6ABC", "I2WIJ", "EA3NY", "PA3FYM", "ON4UN", "SP7IDX",
+  "SM5EPO", "OH2BH", "LY2NK", "YU7EF", "HA5PT", "OK1RR", "S53MM", "9A3A",
+  // Japanese callsigns
+  "JA1YPA", "JH1OBS", "JR2BNF", "JE3EDL", "JF4CAD", "JI5RPT",
+  // Australian/NZ callsigns
+  "VK2IA", "VK3ZL", "ZL1BYZ", "ZL2IFB", "VK6DXI",
+  // South American callsigns
+  "PY2XB", "LU4AA", "CX2DK", "CE3CT", "ZP5JGL",
+  // African/Asian callsigns
+  "ZS6DN", "5Z4NU", "A61AJ", "BY1PK", "HS0ZEE", "YB0AZ"
+];
+
 /**
  * @typedef {import('./accuracy-tracker.js').AccuracyTracker} AccuracyTracker
  */
@@ -224,9 +252,13 @@ export const FREQUENCIES = [
 export class ContentGenerator {
   /**
    * @param {AccuracyTracker} [accuracyTracker=null] - Character accuracy tracker for weak character detection
+   * @param {number} [difficultyPreference=3] - User difficulty preference (1-5)
+   * @param {string} [userCallsign=''] - User's personal callsign for frequent appearance
    */
-  constructor(accuracyTracker = null) {
+  constructor(accuracyTracker = null, difficultyPreference = 3, userCallsign = '') {
     this.accuracyTracker = accuracyTracker || new AccuracyTracker();
+    this.difficultyCalculator = new DifficultyCalculator(this.accuracyTracker, difficultyPreference);
+    this.userCallsign = userCallsign.toUpperCase().trim();
   }
 
   /**
@@ -250,6 +282,31 @@ export class ContentGenerator {
   }
 
   /**
+   * Pick character with weak character emphasis
+   * Weak characters are 3x more likely to be selected
+   * @param {string[]} characters - Available characters
+   * @param {string[]} weakCharacters - Weak characters to emphasize
+   * @returns {string} Selected character
+   * @private
+   */
+  static #pickWeightedCharacter(characters, weakCharacters) {
+    if (weakCharacters.length === 0) {
+      return ContentGenerator.#pickRandomCharacter(characters);
+    }
+
+    // Create weighted pool: weak chars appear 3x
+    const weightedPool = [];
+    characters.forEach(char => {
+      const weight = weakCharacters.includes(char) ? 3 : 1;
+      for (let i = 0; i < weight; i++) {
+        weightedPool.push(char);
+      }
+    });
+
+    return ContentGenerator.#pickRandomCharacter(weightedPool);
+  }
+
+  /**
    * Generate random character group
    * @param {string[]} characters - Available characters
    * @param {number} length - Length of group
@@ -260,6 +317,22 @@ export class ContentGenerator {
     let group = '';
     for (let i = 0; i < length; i++) {
       group += ContentGenerator.#pickRandomCharacter(characters);
+    }
+    return group;
+  }
+
+  /**
+   * Generate character group with weak character emphasis
+   * @param {string[]} characters - Available characters
+   * @param {number} length - Length of group
+   * @param {string[]} weakCharacters - Weak characters to emphasize
+   * @returns {string} Generated group with weak char emphasis
+   * @private
+   */
+  #generateWeightedCharacterGroup(characters, length, weakCharacters) {
+    let group = '';
+    for (let i = 0; i < length; i++) {
+      group += ContentGenerator.#pickWeightedCharacter(characters, weakCharacters);
     }
     return group;
   }
@@ -285,6 +358,33 @@ export class ContentGenerator {
         Math.random() * (groupLengthRange.max - groupLengthRange.min + 1)
       ) + groupLengthRange.min;
       groups.push(ContentGenerator.#generateRandomCharacterGroup(unlockedCharacters, len));
+    }
+    
+    return groups.join(' ');
+  }
+
+  /**
+   * Generate synthetic challenge with weak character emphasis
+   * @param {string[]} unlockedCharacters - Available characters
+   * @param {string[]} weakCharacters - Weak characters to emphasize
+   * @param {Object} config - Configuration with numGroups and groupLength
+   * @returns {string} Generated synthetic challenge
+   * @private
+   */
+  #generateWeightedSyntheticChallenge(unlockedCharacters, weakCharacters, config = {}) {
+    const numGroupsRange = config.numGroupsRange || CONTENT_GENERATION.SYNTHETIC_GROUPS;
+    const groupLengthRange = config.groupLengthRange || CONTENT_GENERATION.SYNTHETIC_GROUP_LENGTH;
+    
+    const numGroups = Math.floor(
+      Math.random() * (numGroupsRange.max - numGroupsRange.min + 1)
+    ) + numGroupsRange.min;
+    
+    const groups = [];
+    for (let g = 0; g < numGroups; g++) {
+      const len = Math.floor(
+        Math.random() * (groupLengthRange.max - groupLengthRange.min + 1)
+      ) + groupLengthRange.min;
+      groups.push(this.#generateWeightedCharacterGroup(unlockedCharacters, len, weakCharacters));
     }
     
     return groups.join(' ');
@@ -326,6 +426,25 @@ export class ContentGenerator {
    */
   updateAccuracyData(newAccuracyTracker) {
     this.accuracyTracker = newAccuracyTracker;
+    this.difficultyCalculator.updateAccuracyTracker(newAccuracyTracker);
+  }
+
+  /**
+   * Update difficulty preference
+   * @param {number} difficultyPreference - New difficulty preference (1-5)
+   * @public
+   */
+  updateDifficultyPreference(difficultyPreference) {
+    this.difficultyCalculator.applyDifficultyPreset(difficultyPreference);
+  }
+
+  /**
+   * Update user callsign
+   * @param {string} userCallsign - New user callsign
+   * @public
+   */
+  updateUserCallsign(userCallsign) {
+    this.userCallsign = userCallsign.toUpperCase().trim();
   }
 
   /**
@@ -344,7 +463,7 @@ export class ContentGenerator {
    * Filter training content pools to only include unlocked characters
    * @param {number} lessonLevel - Current lesson level
    * @param {string[]} manualChars - Manually unlocked characters
-   * @returns {Object} Object with filtered words, abbreviations, Q-codes, phrases, numbers, bands, and frequencies
+   * @returns {Object} Object with filtered words, abbreviations, Q-codes, phrases, numbers, bands, frequencies, and callsigns
    * @public
    */
   getFilteredPool(lessonLevel, manualChars = []) {
@@ -357,6 +476,17 @@ export class ContentGenerator {
       });
     };
 
+    // Build callsign pool with user callsign heavily weighted
+    let availableCallsigns = filterByUnlocked(CALLSIGNS);
+    
+    // If user has a callsign and it's valid for current level, add it multiple times for higher frequency
+    if (this.userCallsign && this.userCallsign.split('').every(char => unlockedCharSet.has(char))) {
+      // Add user callsign 10 times to make it appear very frequently
+      for (let i = 0; i < 10; i++) {
+        availableCallsigns.unshift(this.userCallsign);
+      }
+    }
+
     return {
       words: filterByUnlocked(DICTIONARY),
       abbrs: filterByUnlocked(COMMON_ABBR),
@@ -364,7 +494,8 @@ export class ContentGenerator {
       phrases: filterByUnlocked(PHRASES),
       numbers: filterByUnlocked(NUMBERS),
       bands: filterByUnlocked(BAND_NAMES),
-      frequencies: filterByUnlocked(FREQUENCIES)
+      frequencies: filterByUnlocked(FREQUENCIES),
+      callsigns: availableCallsigns
     };
   }
 
@@ -382,7 +513,7 @@ export class ContentGenerator {
 
     const hasContent = (contentPool.words.length + contentPool.abbrs.length +
       contentPool.qcodes.length + contentPool.phrases.length + contentPool.numbers.length +
-      contentPool.bands.length + contentPool.frequencies.length) > 0;
+      contentPool.bands.length + contentPool.frequencies.length + contentPool.callsigns.length) > 0;
     const useRealContent = hasContent && Math.random() < CONTENT_GENERATION.REAL_CONTENT_PROBABILITY;
 
     let challenge = '';
@@ -397,6 +528,12 @@ export class ContentGenerator {
       if (contentPool.numbers.length) availableContentTypes.push('numbers');
       if (contentPool.bands.length) availableContentTypes.push('bands');
       if (contentPool.frequencies.length) availableContentTypes.push('frequencies');
+      // Add callsigns with very high weight (appears 5x more often than other content types)
+      if (contentPool.callsigns.length) {
+        for (let i = 0; i < 5; i++) {
+          availableContentTypes.push('callsigns');
+        }
+      }
 
       const contentType = ContentGenerator.#pickRandomItem(availableContentTypes);
       const selectedItem = ContentGenerator.#pickRandomItem(contentPool[contentType]);
@@ -404,8 +541,9 @@ export class ContentGenerator {
       challenge = typeof selectedItem === 'string' ? selectedItem : selectedItem.code;
       meaning = typeof selectedItem === 'string' ? '' : selectedItem.meaning;
     } else {
-      // Generate synthetic challenge using random characters
-      challenge = ContentGenerator.#generateSyntheticChallenge(unlockedCharArray);
+      // Generate synthetic challenge with weak character emphasis
+      const weakChars = this.accuracyTracker.getWeakCharacters();
+      challenge = this.#generateWeightedSyntheticChallenge(unlockedCharArray, weakChars);
     }
 
     return { challenge, meaning };
@@ -421,6 +559,15 @@ export class ContentGenerator {
   generateOfflineBroadcast(lessonLevel, manualChars = []) {
     const contentPool = this.getFilteredPool(lessonLevel, manualChars);
     const broadcastParts = [];
+
+    // Callsigns are very common in broadcasts - add one or two
+    if (contentPool.callsigns.length) {
+      broadcastParts.push(ContentGenerator.#pickRandomItem(contentPool.callsigns));
+      // 70% chance of a second callsign
+      if (Math.random() > 0.3 && contentPool.callsigns.length > 1) {
+        broadcastParts.push(ContentGenerator.#pickRandomItem(contentPool.callsigns));
+      }
+    }
 
     if (Math.random() > 0.5 && contentPool.abbrs.length) {
       const selectedAbbr = ContentGenerator.#pickRandomItem(contentPool.abbrs);
@@ -463,11 +610,15 @@ export class ContentGenerator {
    */
   generateOfflineCoach(lessonLevel, manualChars = []) {
     const weakCharacters = this.accuracyTracker.getWeakCharacters();
-    const focusCharacters = weakCharacters.length > 0 ? weakCharacters : Array.from(this.getUnlockedSet(lessonLevel, manualChars));
+    const unlockedChars = Array.from(this.getUnlockedSet(lessonLevel, manualChars));
 
     const groups = [];
     for (let i = 0; i < CONTENT_GENERATION.COACH_DRILL_GROUPS; i++) {
-      groups.push(ContentGenerator.#generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
+      groups.push(this.#generateWeightedCharacterGroup(
+        unlockedChars,
+        CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH,
+        weakCharacters
+      ));
     }
 
     return {
@@ -555,15 +706,18 @@ export class ContentGenerator {
   generateCoachBatch(batchSize, lessonLevel, manualChars = []) {
     const weakCharacters = this.accuracyTracker.getWeakCharacters();
     const hasWeakChars = weakCharacters.length > 0;
+    const unlockedChars = Array.from(this.getUnlockedSet(lessonLevel, manualChars));
 
     const batch = [];
     for (let i = 0; i < batchSize; i++) {
-      // Generate challenges even if no weak chars, using all unlocked chars
-      const focusCharacters = hasWeakChars ? weakCharacters : Array.from(this.getUnlockedSet(lessonLevel, manualChars));
-      
+      // Use weighted generation if we have weak characters
       const groups = [];
       for (let j = 0; j < CONTENT_GENERATION.COACH_DRILL_GROUPS; j++) {
-        groups.push(ContentGenerator.#generateRandomCharacterGroup(focusCharacters, CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH));
+        groups.push(this.#generateWeightedCharacterGroup(
+          unlockedChars,
+          CONTENT_GENERATION.COACH_DRILL_GROUP_LENGTH,
+          weakCharacters
+        ));
       }
 
       batch.push({
@@ -574,4 +728,249 @@ export class ContentGenerator {
 
     return { batch, hasWeakChars };
   }
+
+  /**
+   * Generate challenge with target difficulty level (1-10)
+   * Adapts length, character complexity, and content type to match difficulty
+   * @param {number} targetDifficulty - Difficulty level 1-10
+   * @param {number} lessonLevel - Current lesson level
+   * @param {string[]} manualChars - Manually unlocked characters
+   * @returns {Object} {challenge: string, meaning: string, difficulty: number}
+   * @public
+   */
+  generateChallengeForDifficulty(targetDifficulty, lessonLevel, manualChars = []) {
+    const unlockedCharSet = this.getUnlockedSet(lessonLevel, manualChars);
+    const unlockedCharArray = Array.from(unlockedCharSet);
+    const contentPool = this.getFilteredPool(lessonLevel, manualChars);
+    const weakChars = this.accuracyTracker.getWeakCharacters();
+
+    // Clamp difficulty to valid range
+    const difficulty = Math.max(DIFFICULTY.DIFFICULTY_SCALE_MIN, 
+                                Math.min(DIFFICULTY.DIFFICULTY_SCALE_MAX, targetDifficulty));
+
+    let challenge = '';
+    let meaning = '';
+
+    // Easy (1-3): Single characters, pairs, or very simple short words
+    if (difficulty <= 3) {
+      if (contentPool.words.length > 0 && Math.random() < 0.3) {
+        const shortWords = contentPool.words.filter(w => w.length <= 3);
+        if (shortWords.length > 0) {
+          challenge = ContentGenerator.#pickRandomItem(shortWords);
+          meaning = '';
+        }
+      }
+      if (!challenge) {
+        // Simple synthetic: 1-2 chars per group, 1 group (weighted)
+        const len = Math.floor(Math.random() * 2) + 1;
+        challenge = this.#generateWeightedCharacterGroup(unlockedCharArray, len, weakChars);
+      }
+    }
+    // Medium-Easy (4-5): Short words, abbreviations, 2-3 character groups
+    else if (difficulty <= 5) {
+      if (contentPool.words.length > 0 && Math.random() < 0.5) {
+        const words = contentPool.words.filter(w => w.length <= 5);
+        if (words.length > 0) {
+          challenge = ContentGenerator.#pickRandomItem(words);
+          meaning = '';
+        }
+      }
+      if (!challenge) {
+        if (contentPool.abbrs.length > 0 && Math.random() < 0.5) {
+          const abbr = ContentGenerator.#pickRandomItem(contentPool.abbrs);
+          challenge = abbr.code;
+          meaning = abbr.meaning;
+        }
+      }
+      if (!challenge) {
+        // Moderate synthetic: 2-3 groups, 2-3 chars each (weighted)
+        const numGroups = Math.floor(Math.random() * 2) + 2;
+        const groups = [];
+        for (let i = 0; i < numGroups; i++) {
+          const len = Math.floor(Math.random() * 2) + 2;
+          groups.push(this.#generateWeightedCharacterGroup(unlockedCharArray, len, weakChars));
+        }
+        challenge = groups.join(' ');
+      }
+    }
+    // Medium-Hard (6-7): Longer words, phrases, multiple groups
+    else if (difficulty <= 7) {
+      if (contentPool.phrases.length > 0 && Math.random() < 0.4) {
+        challenge = ContentGenerator.#pickRandomItem(contentPool.phrases);
+        meaning = '';
+      } else if (contentPool.words.length > 0 && Math.random() < 0.4) {
+        const words = contentPool.words;
+        challenge = words.slice(0, Math.min(3, words.length))
+          .map(() => ContentGenerator.#pickRandomItem(words))
+          .join(' ');
+        meaning = '';
+      } else if (contentPool.qcodes.length > 0 && Math.random() < 0.3) {
+        const qcode = ContentGenerator.#pickRandomItem(contentPool.qcodes);
+        challenge = qcode.code;
+        meaning = qcode.meaning;
+      }
+      if (!challenge) {
+        // Medium-hard synthetic: 3-4 groups, 3-4 chars each (weighted)
+        const numGroups = Math.floor(Math.random() * 2) + 3;
+        const groups = [];
+        for (let i = 0; i < numGroups; i++) {
+          const len = Math.floor(Math.random() * 2) + 3;
+          groups.push(this.#generateWeightedCharacterGroup(unlockedCharArray, len, weakChars));
+        }
+        challenge = groups.join(' ');
+      }
+    }
+    // Hard (8-10): Complex phrases, longer sequences, weak character focus
+    else {
+      if (contentPool.phrases.length > 0 && Math.random() < 0.5) {
+        challenge = ContentGenerator.#pickRandomItem(contentPool.phrases);
+        meaning = '';
+      } else if (contentPool.numbers.length > 0 && Math.random() < 0.3) {
+        challenge = ContentGenerator.#pickRandomItem(contentPool.numbers);
+        meaning = '';
+      }
+      if (!challenge) {
+        // Complex synthetic: 3-4 groups, 3-5 chars each (weighted to emphasize weak chars)
+        const numGroups = Math.floor(Math.random() * 2) + 3;
+        const groups = [];
+        for (let i = 0; i < numGroups; i++) {
+          const len = Math.floor(Math.random() * 3) + 3;
+          groups.push(this.#generateWeightedCharacterGroup(unlockedCharArray, len, weakChars));
+        }
+        challenge = groups.join(' ');
+      }
+    }
+
+    // Calculate actual difficulty of generated challenge
+    const actualDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
+      challenge,
+      unlockedCharSet
+    );
+
+    return { challenge, meaning, difficulty: actualDifficulty };
+  }
+
+  /**
+   * Generate a batch of challenges scaled by difficulty progression
+   * Useful for leveled practice sessions
+   * @param {number} batchSize - Number of challenges to generate
+   * @param {number} lessonLevel - Current lesson level
+   * @param {string[]} manualChars - Manually unlocked characters
+   * @param {number} [startingDifficulty=3] - Starting difficulty for batch
+   * @returns {Object[]} Array of {challenge, meaning, difficulty}
+   * @public
+   */
+  generateProgressiveBatch(batchSize, lessonLevel, manualChars = [], startingDifficulty = 3) {
+    const batch = [];
+    let currentDifficulty = startingDifficulty;
+
+    for (let i = 0; i < batchSize; i++) {
+      const challenge = this.generateChallengeForDifficulty(
+        currentDifficulty,
+        lessonLevel,
+        manualChars
+      );
+      batch.push(challenge);
+
+      // Adjust difficulty for next challenge based on current performance
+      const accuracy = this.accuracyTracker.getOverallAccuracy();
+      if (accuracy >= 80) {
+        currentDifficulty = Math.min(10, currentDifficulty + 0.5);
+      } else if (accuracy < 60) {
+        currentDifficulty = Math.max(1, currentDifficulty - 0.5);
+      }
+    }
+
+    return batch;
+  }
+
+  /**
+   * Generate challenges specifically for a newly unlocked character
+   * Starts very easy (character in isolation) and gradually increases complexity
+   * @param {string} newChar - The newly unlocked character
+   * @param {number} lessonLevel - Current lesson level
+   * @param {string[]} manualChars - Manually unlocked characters
+   * @returns {Object} {challenge: string, meaning: string, difficulty: number, focusChar: string}
+   * @public
+   */
+  generateNewCharacterChallenge(newChar, lessonLevel, manualChars = []) {
+    const unlockedCharSet = this.getUnlockedSet(lessonLevel, manualChars);
+    const allCharsArray = Array.from(unlockedCharSet);
+    const weakChars = this.accuracyTracker.getWeakCharacters();
+
+    // Pick progressive difficulty based on attempts with new char
+    const newCharData = this.accuracyTracker.data[newChar];
+    const attempts = newCharData ? newCharData.total : 0;
+    let challenge = '';
+
+    // 0-2 attempts: Isolated character
+    if (attempts < 2) {
+      challenge = newChar;
+    }
+    // 3-5 attempts: Character in pairs/triples
+    else if (attempts < 5) {
+      const len = Math.floor(Math.random() * 2) + 2;
+      challenge = ContentGenerator.#generateRandomCharacterGroup([newChar], len);
+    }
+    // 6-10 attempts: Mixed with other recent characters (weighted)
+    else if (attempts < 10) {
+      const recentChars = [newChar, ...allCharsArray.slice(-3)];
+      const groups = [];
+      for (let i = 0; i < 2; i++) {
+        const len = Math.floor(Math.random() * 2) + 2;
+        groups.push(this.#generateWeightedCharacterGroup(recentChars, len, weakChars));
+      }
+      challenge = groups.join(' ');
+    }
+    // 11+ attempts: Full integration with other characters (weighted)
+    else {
+      const numGroups = Math.floor(Math.random() * 2) + 2;
+      const groups = [];
+      for (let i = 0; i < numGroups; i++) {
+        const len = Math.floor(Math.random() * 2) + 2;
+        groups.push(this.#generateWeightedCharacterGroup(allCharsArray, len, weakChars));
+      }
+      challenge = groups.join(' ');
+    }
+
+    const difficulty = this.difficultyCalculator.calculateChallengeDifficulty(
+      challenge,
+      unlockedCharSet,
+      0 // Mark as new character (0 lessons since unlock)
+    );
+
+    return {
+      challenge,
+      meaning: `Focus on "${newChar}"`,
+      difficulty,
+      focusChar: newChar
+    };
+  }
+
+  /**
+   * Calculate and return difficulty metrics for the current state
+   * Useful for UI display and adaptive decisions
+   * @param {number} lessonLevel - Current lesson level
+   * @param {string[]} manualChars - Manually unlocked characters
+   * @param {number} targetDifficulty - Target difficulty level
+   * @returns {Object} {currentLevel, recommended, weak, strong, characterDifficulty}
+   * @public
+   */
+  getDifficultyMetrics(lessonLevel, manualChars = [], targetDifficulty = 5) {
+    const unlockedChars = Array.from(this.getUnlockedSet(lessonLevel, manualChars));
+    const categorized = this.difficultyCalculator.categorizeCharacters(unlockedChars);
+    const recommended = this.difficultyCalculator.getRecommendedDifficulty(targetDifficulty);
+    const overall = this.accuracyTracker.getOverallAccuracy();
+
+    return {
+      currentLevel: targetDifficulty,
+      recommended: Math.round(recommended * 10) / 10,
+      weak: categorized.weak,
+      strong: categorized.strong,
+      moderate: categorized.moderate,
+      overallAccuracy: overall,
+      unlockedCount: unlockedChars.length
+    };
+  }
 }
+

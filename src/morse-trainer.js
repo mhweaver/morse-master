@@ -20,7 +20,9 @@ import {
   DEFAULT_SETTINGS,
   SETTINGS_RANGES,
   PLAYBACK_DELAYS,
-  DEFAULT_STATS
+  DEFAULT_STATS,
+  DIFFICULTY_PRESETS,
+  DIFFICULTY
 } from './constants.js';
 import { COMMON_ABBR } from './content-generator.js';
 import {
@@ -32,6 +34,7 @@ import { AudioSynthesizer } from './audio-synthesizer.js';
 import { StateManager } from './state-manager.js';
 import { ContentGenerator } from './content-generator.js';
 import { AIOperations } from './ai-operations.js';
+import { DifficultyCalculator } from './difficulty-calculator.js';
 
 // --- Class ---
 /**
@@ -63,12 +66,21 @@ export class MorseTrainer {
         this.audioSynthesizer = new AudioSynthesizer(this.stateManager.settings);
         // Wrap accuracy data in AccuracyTracker for self-documenting interface
         this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
-        this.contentGenerator = new ContentGenerator(this.accuracyTracker);
+        this.difficultyCalculator = new DifficultyCalculator(
+            this.accuracyTracker,
+            this.stateManager.settings.difficultyPreference
+        );
+        this.contentGenerator = new ContentGenerator(
+            this.accuracyTracker,
+            this.stateManager.settings.difficultyPreference,
+            this.stateManager.settings.userCallsign
+        );
         this.aiOperations = new AIOperations(this.stateManager, this.contentGenerator);
 
         // Initialize application state
         this.currentChallenge = '';
         this.currentMeaning = '';
+        this.lastChallengeDifficulty = 5; // Default middle difficulty
         this.activeTab = 'train';
         this.hasPlayedCurrent = false;
         this.eventListeners = []; // Track listeners for cleanup
@@ -101,7 +113,9 @@ export class MorseTrainer {
                 wpm: this.container.querySelector('#input-wpm'),
                 farnsworth: this.container.querySelector('#input-farnsworth'),
                 frequency: this.container.querySelector('#input-frequency'),
-                apiKey: this.container.querySelector('#input-api-key')
+                apiKey: this.container.querySelector('#input-api-key'),
+                difficulty: this.container.querySelector('#input-difficulty'),
+                userCallsign: this.container.querySelector('#input-user-callsign')
             },
             displays: {
                 feedback: this.container.querySelector('#feedback-msg'),
@@ -111,6 +125,7 @@ export class MorseTrainer {
                 kochGrid: this.container.querySelector('#koch-grid'),
                 statsAcc: this.container.querySelector('#stat-accuracy'),
                 statsDrills: this.container.querySelector('#stat-drills'),
+                characterBreakdown: this.container.querySelector('#character-breakdown'),
                 historyList: this.container.querySelector('#history-list'),
                 abbrGrid: this.container.querySelector('#abbr-grid'),
                 roadmap: this.container.querySelector('#roadmap-list'),
@@ -121,6 +136,7 @@ export class MorseTrainer {
             modals: {
                 settings: this.container.querySelector('#modal-settings'),
                 reset: this.container.querySelector('#modal-reset'),
+                characterDetail: this.container.querySelector('#modal-character-detail'),
                 aiHelp: this.container.querySelector('#modal-ai-help')
             },
             tabs: {
@@ -232,6 +248,16 @@ export class MorseTrainer {
                                 <button class="mt-btn-danger" data-action="modal:reset:open">Wipe Progress</button>
                             </div>
                         </div>
+
+                        <!-- CHARACTER MASTERY BREAKDOWN -->
+                        <div class="mt-card">
+                            <h3>Character Mastery</h3>
+                            <p class="mt-text-muted" style="font-size: 0.9rem; margin-bottom: 1rem;">
+                                Red = Weak (needs practice) • Yellow = Learning • Green = Proficient
+                            </p>
+                            <div id="character-breakdown" class="mt-char-grid"></div>
+                        </div>
+
                         <div class="mt-card">
                             <h3>Recent Drills</h3>
                             <div id="history-list" class="mt-history-list"></div>
@@ -273,6 +299,11 @@ export class MorseTrainer {
                         </div>
                         <div class="mt-modal-body">
                             <div class="mt-form-group">
+                                <label>Challenge Difficulty <span id="display-difficulty">${this._getDifficultyLabel(DEFAULT_SETTINGS.difficultyPreference)}</span></label>
+                                <input type="range" id="input-difficulty" min="${SETTINGS_RANGES.difficultyPreference.min}" max="${SETTINGS_RANGES.difficultyPreference.max}" data-action="setting:difficulty">
+                                <p class="mt-hint">Adjusts how quickly challenges get harder and grace period for new characters</p>
+                            </div>
+                            <div class="mt-form-group">
                                 <label>Char Speed <span id="display-wpm">${DEFAULT_SETTINGS.wpm} WPM</span></label>
                                 <input type="range" id="input-wpm" min="${SETTINGS_RANGES.wpm.min}" max="${SETTINGS_RANGES.wpm.max}" data-action="setting:wpm">
                             </div>
@@ -285,6 +316,11 @@ export class MorseTrainer {
                                 <input type="range" id="input-frequency" min="${SETTINGS_RANGES.frequency.min}" max="${SETTINGS_RANGES.frequency.max}" step="${SETTINGS_RANGES.frequency.step}" data-action="setting:frequency">
                             </div>
                             <div class="mt-form-group border-top">
+                                <label>Your Callsign (Optional)</label>
+                                <input type="text" id="input-user-callsign" class="mt-input" placeholder="e.g., K1ABC, W2XYZ" maxlength="10" data-action="setting:userCallsign">
+                                <p class="mt-hint">Your callsign will appear frequently in training challenges</p>
+                            </div>
+                            <div class="mt-form-group border-top">
                                 <label>Gemini API Key (Optional)</label>
                                 <input type="password" id="input-api-key" class="mt-input" placeholder="Enter key..." data-action="setting:apiKey">
                                 <p class="mt-hint">App will use: Gemini Cloud API → Chrome On-Device AI → Offline Template Engine</p>
@@ -293,6 +329,44 @@ export class MorseTrainer {
                         </div>
                         <div class="mt-modal-footer">
                             <button class="mt-btn-primary" data-action="modal:settings:close">Apply & Close</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Character Detail Modal -->
+                <div id="modal-character-detail" class="mt-modal hidden">
+                    <div class="mt-modal-content">
+                        <div class="mt-modal-header">
+                            <h2 id="char-detail-name"></h2>
+                            <button class="mt-close-btn" data-action="modal:characterDetail:close">&times;</button>
+                        </div>
+                        <div class="mt-modal-body">
+                            <div class="mt-char-detail-container">
+                                <div class="mt-detail-tier">
+                                    <span class="mt-detail-label">Mastery Tier:</span>
+                                    <span id="char-detail-tier" class="mt-detail-value"></span>
+                                </div>
+                                <div class="mt-detail-accuracy">
+                                    <span class="mt-detail-label">Accuracy:</span>
+                                    <span id="char-detail-accuracy" class="mt-detail-value"></span>
+                                </div>
+                                <div class="mt-detail-attempts">
+                                    <span class="mt-detail-label">Attempts:</span>
+                                    <span id="char-detail-attempts" class="mt-detail-value"></span>
+                                </div>
+                                <div class="mt-detail-correct">
+                                    <span class="mt-detail-label">Correct:</span>
+                                    <span id="char-detail-correct" class="mt-detail-value"></span>
+                                </div>
+                                <div class="mt-detail-incorrect">
+                                    <span class="mt-detail-label">Incorrect:</span>
+                                    <span id="char-detail-incorrect" class="mt-detail-value"></span>
+                                </div>
+                                <div id="char-detail-advice" class="mt-detail-advice"></div>
+                            </div>
+                        </div>
+                        <div class="mt-modal-footer">
+                            <button class="mt-btn-primary" data-action="modal:characterDetail:close">Close</button>
                         </div>
                     </div>
                 </div>
@@ -529,6 +603,12 @@ export class MorseTrainer {
             const char = action.split(':')[1];
             this.toggleChar(char);
         }
+
+        // Character detail view
+        if (action.startsWith('char:')) {
+            const char = action.split(':')[1];
+            this.showCharacterDetail(char);
+        }
     }
 
     /**
@@ -576,10 +656,12 @@ export class MorseTrainer {
             this.eventListeners.push({ element, event: 'input', handler });
         };
 
+        bindSetting(this.dom.inputs.difficulty, 'difficultyPreference');
         bindSetting(this.dom.inputs.wpm, 'wpm');
         bindSetting(this.dom.inputs.farnsworth, 'farnsworthWpm');
         bindSetting(this.dom.inputs.frequency, 'frequency');
         bindSetting(this.dom.inputs.apiKey, 'apiKey');
+        bindSetting(this.dom.inputs.userCallsign, 'userCallsign');
         bindSetting('#autoplay-toggle', 'autoPlay');
     }
 
@@ -666,6 +748,14 @@ export class MorseTrainer {
         this.hasPlayedCurrent = false;
         this.dom.inputs.user.value = '';
         this.dom.displays.feedback.classList.add('hidden');
+        
+        // Calculate and store challenge difficulty (1-10 scale)
+        const unlockedChars = new Set(KOCH_SEQUENCE.slice(0, this.stateManager.settings.lessonLevel));
+        this.lastChallengeDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
+            this.currentChallenge,
+            unlockedChars
+        );
+        
         this.renderSubmitButton();
 
         if (playNow) setTimeout(() => this.playMorse(this.currentChallenge), 100);
@@ -716,7 +806,8 @@ export class MorseTrainer {
         
         if (isCorrect) {
             feedbackElement.classList.add(CSS_CLASSES.SUCCESS);
-            feedbackElement.textContent = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}`;
+            const feedbackText = `${UI_FEEDBACK.CORRECT_MESSAGE}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}\n💡 Difficulty: ${Math.round(this.lastChallengeDifficulty || 5)}/10`;
+            feedbackElement.textContent = feedbackText;
             if (this.activeTab === 'train') {
                 const delay = this.stateManager.settings.autoPlay ? PLAYBACK_DELAYS.AUTO_PLAY_NEXT : 0;
                 if (this.stateManager.settings.autoPlay) {
@@ -729,7 +820,8 @@ export class MorseTrainer {
         } else {
             feedbackElement.classList.add(CSS_CLASSES.ERROR);
             const displayedUserAnswer = userAnswer || UI_FEEDBACK.EMPTY_INPUT;
-            feedbackElement.textContent = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}`;
+            const feedbackText = `You: ${displayedUserAnswer} | Answer: ${correctAnswer}${this.currentMeaning ? ` (${this.currentMeaning})` : ''}\n💡 Difficulty: ${Math.round(this.lastChallengeDifficulty || 5)}/10`;
+            feedbackElement.textContent = feedbackText;
         }
     }
 
@@ -906,6 +998,13 @@ export class MorseTrainer {
         this.currentMeaning = challenge.meaning;
         this.dom.inputs.user.value = '';
 
+        // Calculate difficulty for queued challenges too
+        const unlockedChars = new Set(KOCH_SEQUENCE.slice(0, this.stateManager.settings.lessonLevel));
+        this.lastChallengeDifficulty = this.difficultyCalculator.calculateChallengeDifficulty(
+            this.currentChallenge,
+            unlockedChars
+        );
+
         // Show coach tip if applicable
         if (hasWeakChars !== null) {
             this.dom.displays.aiTipContainer.classList.remove(CSS_CLASSES.HIDDEN);
@@ -962,9 +1061,19 @@ export class MorseTrainer {
     updateSetting(key, newValue) {
         if (key === 'apiKey') {
             this.stateManager.settings.apiKey = newValue.trim();
+        } else if (key === 'userCallsign') {
+            this.stateManager.settings.userCallsign = newValue.toUpperCase().trim();
+            this.contentGenerator.updateUserCallsign(newValue);
         } else {
             this.stateManager.settings[key] = key === 'autoPlay' ? newValue : parseInt(newValue);
         }
+        
+        // Apply difficulty preference to content generator and difficulty calculator
+        if (key === 'difficultyPreference') {
+            this.contentGenerator.updateDifficultyPreference(parseInt(newValue));
+            this.difficultyCalculator.applyDifficultyPreset(parseInt(newValue));
+        }
+        
         this.renderSettings();
         this._debouncedSaveSettings(); // Save after UI update
     }
@@ -990,9 +1099,15 @@ export class MorseTrainer {
         this.stateManager.settings.manualChars = [];
         this.stateManager.saveStats();
         this.stateManager.saveSettings();
+        
+        // Recreate AccuracyTracker with fresh stats
+        this.accuracyTracker = new AccuracyTracker(this.stateManager.stats.accuracy);
+        this.contentGenerator.updateAccuracyData(this.accuracyTracker);
+        
         this.toggleModal('reset', false);
         this.renderStats();
         this.renderKochGrid();
+        this.renderCharacterBreakdown();
     }
 
 
@@ -1002,13 +1117,16 @@ export class MorseTrainer {
      */
     renderSettings() {
         const s = this.stateManager.settings;
+        this.container.querySelector('#display-difficulty').textContent = this._getDifficultyLabel(s.difficultyPreference);
         this.container.querySelector('#display-wpm').textContent = s.wpm + " WPM";
         this.container.querySelector('#display-farnsworth').textContent = s.farnsworthWpm + " WPM";
         this.container.querySelector('#display-frequency').textContent = s.frequency + " Hz";
+        this.dom.inputs.difficulty.value = s.difficultyPreference;
         this.dom.inputs.wpm.value = s.wpm;
         this.dom.inputs.farnsworth.value = s.farnsworthWpm;
         this.dom.inputs.frequency.value = s.frequency;
         this.dom.inputs.apiKey.value = s.apiKey;
+        this.dom.inputs.userCallsign.value = s.userCallsign;
 
         const badge = this.container.querySelector('#ai-status-badge');
         if (s.apiKey) { badge.className = 'mt-badge-large active-cloud'; badge.textContent = "Active: Gemini Cloud"; }
@@ -1159,5 +1277,131 @@ export class MorseTrainer {
             historyList.innerHTML = '';
             historyList.appendChild(fragment);
         }
+
+        // Render character mastery breakdown
+        this.renderCharacterBreakdown();
+    }
+
+    /**
+     * Render per-character mastery breakdown with progress bars and tiers
+     * @private
+     */
+    renderCharacterBreakdown() {
+        const container = this.domCache.query('#character-breakdown');
+        if (!container) return;
+
+        const tracker = this.accuracyTracker;
+        const allChars = KOCH_SEQUENCE;
+        const weakChars = tracker.getWeakCharacters();
+
+        // Create mastery tier mapping function
+        const getMasteryTier = (accuracy, attempts) => {
+            if (attempts === 0) return { tier: 'Untouched', icon: '○', color: '#9ca3af', level: 0 };
+            if (accuracy < 30) return { tier: 'Beginner', icon: '★✩✩✩✩', color: '#ef4444', level: 1 };
+            if (accuracy < 60) return { tier: 'Learning', icon: '★★✩✩✩', color: '#f97316', level: 2 };
+            if (accuracy < 75) return { tier: 'Proficient', icon: '★★★✩✩', color: '#eab308', level: 3 };
+            if (accuracy < 90) return { tier: 'Expert', icon: '★★★★✩', color: '#84cc16', level: 4 };
+            return { tier: 'Master', icon: '★★★★★', color: '#10b981', level: 5 };
+        };
+
+        const fragment = document.createDocumentFragment();
+
+        allChars.forEach((char) => {
+            const stats = tracker.getCharacterStats(char);
+            const accuracy = tracker.getAccuracy(char);
+            const attempts = stats ? stats.total : 0;
+            const mastery = getMasteryTier(accuracy, attempts);
+            const isWeak = weakChars.includes(char);
+
+            // Create character card
+            const card = document.createElement('div');
+            card.className = `mt-char-card ${isWeak ? 'mt-char-weak' : ''}`;
+            card.setAttribute('data-action', `char:${char}`);
+            card.style.borderLeftColor = mastery.color;
+            card.style.cursor = 'pointer';
+            card.title = `Click to view details for ${char}`;
+
+            let html = `<div class="mt-char-header">
+                <span class="mt-char-letter">${char}</span>
+                <span class="mt-char-tier" style="color: ${mastery.color};">${mastery.icon}</span>
+            </div>
+            <div class="mt-char-stats">
+                <span class="mt-char-accuracy">${accuracy}%</span>
+                <span class="mt-char-attempts">${attempts} reps</span>
+            </div>`;
+
+            if (isWeak) {
+                html += `<div class="mt-char-warning">⚠️ Weak - needs practice</div>`;
+            }
+
+            card.innerHTML = html;
+            fragment.appendChild(card);
+        });
+
+        container.innerHTML = '';
+        container.appendChild(fragment);
+    }
+
+    /**
+     * Show detailed mastery information for a character
+     * @param {string} char - The character to show details for
+     * @private
+     */
+    showCharacterDetail(char) {
+        const tracker = this.accuracyTracker;
+        const stats = tracker.getCharacterStats(char);
+        const accuracy = tracker.getAccuracy(char);
+        const attempts = stats ? stats.total : 0;
+        const correct = stats ? stats.correct : 0;
+        const incorrect = stats ? stats.incorrect : 0;
+
+        // Determine mastery tier
+        const getMasteryTier = (accuracy, attempts) => {
+            if (attempts === 0) return { tier: 'Untouched', icon: '○', description: 'New character - no practice yet' };
+            if (accuracy < 30) return { tier: 'Beginner', icon: '★✩✩✩✩', description: 'Just starting - needs more practice' };
+            if (accuracy < 60) return { tier: 'Learning', icon: '★★✩✩✩', description: 'Making progress - keep practicing' };
+            if (accuracy < 75) return { tier: 'Proficient', icon: '★★★✩✩', description: 'Solid foundation - good progress!' };
+            if (accuracy < 90) return { tier: 'Expert', icon: '★★★★✩', description: 'Excellent - nearly mastered!' };
+            return { tier: 'Master', icon: '★★★★★', description: 'Expert level - fully mastered!' };
+        };
+
+        const mastery = getMasteryTier(accuracy, attempts);
+
+        // Generate advice
+        let advice = '';
+        if (attempts === 0) {
+            advice = '💡 Practice this character to get started!';
+        } else if (accuracy < 60) {
+            advice = `⚠️ Accuracy is low (${accuracy}%). Practice this character more to improve.`;
+        } else if (accuracy < 75) {
+            advice = `📈 Good progress! Continue practicing ${char} to reach expert level.`;
+        } else if (accuracy < 90) {
+            advice = `🎯 Almost there! Just a bit more practice to master ${char}.`;
+        } else {
+            advice = `🎉 Excellent! You've mastered ${char}. Keep reinforcing!`;
+        }
+
+        // Update modal content
+        this.container.querySelector('#char-detail-name').textContent = `Character: ${char}`;
+        this.container.querySelector('#char-detail-tier').innerHTML = `<span style="font-size: 1.2em;">${mastery.icon}</span> ${mastery.tier}`;
+        this.container.querySelector('#char-detail-accuracy').textContent = `${accuracy}%`;
+        this.container.querySelector('#char-detail-attempts').textContent = attempts;
+        this.container.querySelector('#char-detail-correct').textContent = correct;
+        this.container.querySelector('#char-detail-incorrect').textContent = incorrect;
+        this.container.querySelector('#char-detail-advice').innerHTML = `<p>${advice}</p><p style="font-size: 0.9em; color: #666;">${mastery.description}</p>`;
+
+        // Show modal
+        this.toggleModal('characterDetail', true);
+    }
+
+    /**
+     * Get the difficulty preset label for display
+     * @param {number} preference - Difficulty preference (1-5)
+     * @returns {string} Label like "Medium", "Hard", etc.
+     * @private
+     */
+    _getDifficultyLabel(preference) {
+        const preset = DIFFICULTY_PRESETS[preference];
+        return preset ? preset.name : 'Medium';
     }
 }

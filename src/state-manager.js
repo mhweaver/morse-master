@@ -119,6 +119,8 @@ export class StateManager {
       this.settings.frequency = parseInt(newValue);
     } else if (key === 'apiKey') {
       this.settings.apiKey = newValue.trim();
+    } else if (key === 'userCallsign') {
+      this.settings.userCallsign = newValue.toUpperCase().trim();
     } else if (key === 'autoPlay') {
       this.settings.autoPlay = newValue;
     } else if (key === 'autoLevel') {

@@ -19,7 +19,9 @@ export const DEFAULT_SETTINGS = {
   autoLevel: true,
   autoPlay: true,
   apiKey: '',
-  manualChars: []
+  manualChars: [],
+  difficultyPreference: 3,  // 1=Very Easy, 2=Easy, 3=Medium, 4=Hard, 5=Very Hard
+  userCallsign: ''  // User's personal amateur radio callsign
 };
 
 export const DEFAULT_STATS = {
@@ -31,7 +33,8 @@ export const DEFAULT_STATS = {
 export const SETTINGS_RANGES = {
   wpm: { min: 15, max: 45 },
   farnsworthWpm: { min: 5, max: 45 },
-  frequency: { min: 300, max: 1200, step: 50 }
+  frequency: { min: 300, max: 1200, step: 50 },
+  difficultyPreference: { min: 1, max: 5 }
 };
 
 // --- Audio Timing (in fractions of WPM) ---
@@ -117,7 +120,8 @@ export const AI_APIS = {
 export const MODAL_IDENTIFIERS = {
   SETTINGS: 'settings',
   RESET: 'reset',
-  AI_HELP: 'aiHelp'
+  AI_HELP: 'aiHelp',
+  CHARACTER_DETAIL: 'characterDetail'
 };
 
 // --- CSS Classes ---
@@ -155,6 +159,78 @@ export const UI_FEEDBACK = {
 export const AI_PROMPTS = {
   BROADCAST: (chars) => `Generate a short sentence (5-10 words). Constraints: Use ONLY these characters: [${chars}]. Output UPPERCASE text only, no punctuation.`,
   COACH: (focusChars, allChars) => `Generate a practice drill of 3-4 groups of random characters (4 chars each). Focus on these characters: [${focusChars}]. Use only characters from: [${allChars}]. Output format: XXXX XXXX XXXX (uppercase, space-separated groups, no punctuation).`
+};
+
+// --- Difficulty Heuristic ---
+export const DIFFICULTY = {
+  // Difficulty scale (1-10)
+  EASY: 1,
+  VERY_EASY: 2,
+  MODERATE: 5,
+  HARD: 8,
+  VERY_HARD: 10,
+
+  // New character ramp - reduce difficulty when new char just added
+  NEW_CHAR_DIFFICULTY_GRACE: 2, // lessons to apply easier generation
+  NEW_CHAR_BASE_DIFFICULTY: 2, // start new chars at this difficulty
+
+  // Difficulty factors
+  DIFFICULTY_SCALE_MIN: 1,
+  DIFFICULTY_SCALE_MAX: 10,
+
+  // Performance thresholds for adaptation
+  EXCELLENT_PERFORMANCE_THRESHOLD: 0.85, // increase difficulty
+  GOOD_PERFORMANCE_THRESHOLD: 0.75,      // maintain or slightly increase
+  FAIR_PERFORMANCE_THRESHOLD: 0.60,      // maintain
+  POOR_PERFORMANCE_THRESHOLD: 0.60,      // decrease difficulty
+
+  // Difficulty adjustment factors
+  DIFFICULTY_UP_FACTOR: 1.2,   // increase by 20% when performing well
+  DIFFICULTY_DOWN_FACTOR: 0.8, // decrease by 20% when struggling
+  DIFFICULTY_MAINTAIN_RANGE: 0.15, // ±15% to maintain current difficulty
+
+  // Character accuracy influence
+  WEAK_CHAR_ACCURACY_REDUCTION: -2, // reduce difficulty if weak chars present
+  STRONG_CHAR_BONUS: 1, // increase difficulty if all chars >80% accuracy
+
+  // Challenge length influence on difficulty
+  SYNTHETIC_LENGTH_WEIGHT: 0.3,      // 30% of difficulty from length
+  REAL_CONTENT_DIFFICULTY_BOOST: 1.5 // real words are 50% harder than synthetic
+};
+
+// --- Difficulty Presets (User-friendly difficulty slider) ---
+// Maps difficultyPreference (1-5) to DIFFICULTY configuration overrides
+export const DIFFICULTY_PRESETS = {
+  1: { // Very Easy - Gentle learning for absolute beginners
+    name: 'Very Easy',
+    NEW_CHAR_DIFFICULTY_GRACE: 3,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.95,
+    POOR_PERFORMANCE_THRESHOLD: 0.70
+  },
+  2: { // Easy - Beginner-friendly with generous grace period
+    name: 'Easy',
+    NEW_CHAR_DIFFICULTY_GRACE: 2,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.90,
+    POOR_PERFORMANCE_THRESHOLD: 0.65
+  },
+  3: { // Medium - Balanced challenge (default)
+    name: 'Medium',
+    NEW_CHAR_DIFFICULTY_GRACE: 2,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.85,
+    POOR_PERFORMANCE_THRESHOLD: 0.60
+  },
+  4: { // Hard - More challenging progression
+    name: 'Hard',
+    NEW_CHAR_DIFFICULTY_GRACE: 1,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.80,
+    POOR_PERFORMANCE_THRESHOLD: 0.55
+  },
+  5: { // Very Hard - Contest prep, rapid advancement
+    name: 'Very Hard',
+    NEW_CHAR_DIFFICULTY_GRACE: 1,
+    EXCELLENT_PERFORMANCE_THRESHOLD: 0.75,
+    POOR_PERFORMANCE_THRESHOLD: 0.50
+  }
 };
 
 // --- Morse Code Library ---
